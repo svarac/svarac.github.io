@@ -126,7 +126,7 @@ main{position:relative;z-index:1}
 .sec__head h2{margin:0;flex:none;font-family:var(--f-display);font-weight:400;font-size:1.5rem;line-height:1.5;letter-spacing:.02em}
 .sec__rule{flex:1;height:1px;background:var(--rule);transform-origin:0 50%;transform:scaleX(var(--rl,0));transition:transform .9s cubic-bezier(.2,.7,.2,1)}
 .sec__tools{display:none;gap:var(--s1);flex:none}
-@media (hover:hover) and (min-width:760px){.sec__tools{display:flex}}
+@media (hover:hover) and (min-width:760px){.is-scrollable .sec__tools{display:flex}}
 .sec.is-in .sec__head img{--em-s:1}
 .sec.is-in .sec__rule{--rl:1}
 

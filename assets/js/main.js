@@ -110,8 +110,15 @@
     box.innerHTML = left + `<div>${guests}${e.preview ? `<p class="next__preview">${esc(e.preview)}</p>` : ''}${btns}</div>`;
     tick();
   }
+  // the arrow buttons only appear when there are more people than fit in the row
+  function syncStaffTools() {
+    const vp = $('staff-viewport');
+    $('staff').classList.toggle('is-scrollable', vp.scrollWidth > vp.clientWidth + 2);
+  }
+  window.addEventListener('resize', () => requestAnimationFrame(syncStaffTools));
   function renderStaff() {
     $('staff').hidden = DATA.staff.length === 0;
+    requestAnimationFrame(syncStaffTools);
     $('staff-list').innerHTML = DATA.staff.map((m) => `<li class="member">
         <div class="member__photo">${m.photo ? `<img src="${esc(m.photo)}" alt="" loading="lazy">` : `<span class="gold" aria-hidden="true">${esc([...String(m.name || '？')][0])}</span>`}</div>
         <h3 class="member__name">${esc(m.name)}</h3>

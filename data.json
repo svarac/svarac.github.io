@@ -6,5 +6,13 @@
   "hashtag": "スバラシー",
   "defaultDurationMinutes": 90,
   "episodes": [],
-  "staff": []
+  "staff": [
+    {
+      "name": "Kent",
+      "role": "Host",
+      "photo": "assets/img/staff/kent.jpg",
+      "x": "https://x.com/Kent_saikou",
+      "spoon": "https://www.spooncast.net/jp/@djsoonjp"
+    }
+  ]
 }
