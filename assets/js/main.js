@@ -48,7 +48,8 @@
     const eps = (d.episodes || []).filter((e) => e && e.start && !isNaN(Date.parse(e.start))).map((e) => {
       const s = Date.parse(e.start), en = e.end && !isNaN(Date.parse(e.end)) ? Date.parse(e.end) : s + dur;
       const preview = String(e.preview || '');
-      if ([...preview].length > 100) console.warn(`第${e.no}回の予告文が100字を超えています（${[...preview].length}字）`);
+      const n = [...preview.replace(/\n/g, '')].length;
+      if (n > 100) console.warn(`第${e.no}回の予告文が100字を超えています（${n}字）`);
       return { ...e, s, en, preview, guests: e.guests || [] };
     });
     return { ...d, eps, staff: d.staff || [], links: d.links || {} };
@@ -59,6 +60,28 @@
     return { next, past, onair: !!(next && next.s <= now) };
   }
 
+  // ---------- Japanese line breaks: keep each phrase on one line (つかの間 is never split into つか / の間)
+  const SEG = window.Intl && Intl.Segmenter ? new Intl.Segmenter('ja', { granularity: 'word' }) : null;
+  const clen = (t) => [...t].length;
+  function phrases(text) {
+    const out = []; let glue = false;
+    for (const { segment: s } of SEG.segment(text)) {
+      const prev = out.length ? out[out.length - 1] : null;
+      const attach = prev !== null && !/^\s+$/.test(prev) && !/^\s+$/.test(s) && (glue
+        || /^[、。，．・！？!?」』）)］】〉》…,.:;]/.test(s)                                               // punctuation, closing brackets
+        || (/^[ぁ-ゟ]+$/.test(s) && s !== 'お' && s !== 'ご' && !/[、。！？!?]$/.test(prev) && clen(prev) < 10) // particles, okurigana
+        || (/[゠-ヿ]$/.test(prev) && /^[゠-ヿ]/.test(s))                                     // katakana split apart
+        || (/[0-9０-９]$/.test(prev) && /^[一-鿿]/.test(s))                                           // 4人
+        || (/[一-鿿々]$/.test(prev) && /^[一-鿿々]/.test(s) && clen(prev + s) <= 6));          // short kanji compounds
+      if (attach) out[out.length - 1] += s; else out.push(s);
+      glue = /[「『（(［【〈《]$/.test(s) || s === 'お' || s === 'ご';                                           // lean on the next word
+    }
+    return out;
+  }
+  const prose = (text) => String(text).split('\n').map((line) => (SEG && line
+    ? phrases(line).map((w) => (/^\s+$/.test(w) ? ' ' : `<span class="nw">${esc(w)}</span>`)).join('')
+    : esc(line))).join('<br>');
+
   // ---------- pieces
   const linkBtns = (o) => {
     const cls = 'btn btn--sm btn--line', a = [];
@@ -68,7 +91,7 @@
   };
   function calendarLinks(e) {
     const title = `SVARAC（スバラシー）${e.no ? `第${e.no}回` : ''}`;
-    const details = [e.preview, e.guests.length ? `ゲスト：${e.guests.map((g) => g.name).join('、')}` : '', 'Spoonで配信', location.href.split(/[?#]/)[0]].filter(Boolean).join('\n');
+    const details = [e.preview, e.guests.length ? `ゲスト：${e.guests.map((g) => g.name).join('、')}` : e.guestNote ? `ゲスト：${e.guestNote}` : '', 'Spoonで配信', location.href.split(/[?#]/)[0]].filter(Boolean).join('\n');
     const g = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${utcStamp(e.s)}/${utcStamp(e.en)}&details=${encodeURIComponent(details)}`;
     const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SVARAC//LP//JA', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
       `UID:svarac-${e.no || e.s}@svarac`, `DTSTAMP:${utcStamp(Date.now())}`, `DTSTART:${utcStamp(e.s)}`, `DTEND:${utcStamp(e.en)}`,
@@ -102,12 +125,14 @@
               <span class="count__unit"><b class="gold" id="cd-m">00</b><span>分</span></span>
               <span class="count__unit"><b class="gold" id="cd-s">00</b><span>秒</span></span></div></div>`}
       </div>`;
-    const guests = e.guests.length ? `<p class="next__label">ゲスト</p><ul class="guests">${e.guests.map((g) => `<li class="guest"><span class="guest__name">${esc(g.name)}</span>${linkBtns(g)}</li>`).join('')}</ul>` : '';
+    // before the guests are announced, guestNote (e.g. 後日発表) stands in for the list
+    const guests = e.guests.length ? `<p class="next__label">ゲスト</p><ul class="guests">${e.guests.map((g) => `<li class="guest"><span class="guest__name">${esc(g.name)}</span>${linkBtns(g)}</li>`).join('')}</ul>`
+      : e.guestNote ? `<p class="next__label">ゲスト</p><p class="guests__note">${esc(e.guestNote)}</p>` : '';
     const btns = st.onair
       ? (listen ? `<div class="btns"><a class="btn btn--lg btn--red" href="${esc(listen)}" target="_blank" rel="noopener">Spoonで聴く</a></div>` : '')
       : `<div class="btns"><a class="btn btn--lg btn--red" href="${cal.google}" target="_blank" rel="noopener">Googleカレンダーに追加</a>
           <a class="btn btn--lg btn--line" href="${cal.ics}" download="${cal.file}">iPhoneなどのカレンダーに追加</a></div>`;
-    box.innerHTML = left + `<div>${guests}${e.preview ? `<p class="next__preview">${esc(e.preview)}</p>` : ''}${btns}</div>`;
+    box.innerHTML = left + `<div>${guests}${e.preview ? `<p class="next__preview">${prose(e.preview)}</p>` : ''}${btns}</div>`;
     tick();
   }
   // the arrow buttons only appear when there are more people than fit in the row
@@ -131,7 +156,7 @@
     $('archive-list').innerHTML = st.past.map((e) => `<li class="ep">
         <div class="ep__head"><p class="ep__no gold">#${pad(e.no || '')}</p><p class="ep__date">${ymd(e.s)}<small>（${dow(e.s)}）</small></p></div>
         ${e.guests.length ? `<p class="ep__guests">ゲスト：${e.guests.map((g, i, a) => `<span class="nw">${esc(g.name)}${i < a.length - 1 ? '、' : ''}</span>`).join('')}</p>` : ''}
-        ${e.preview ? `<p class="ep__preview">${esc(e.preview)}</p>` : ''}
+        ${e.preview ? `<p class="ep__preview">${prose(e.preview)}</p>` : ''}
       </li>`).join('');
   }
   function renderStatic() {

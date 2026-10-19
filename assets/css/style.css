@@ -159,15 +159,20 @@ main{position:relative;z-index:1}
 .count__unit{display:flex;align-items:baseline;gap:4px}
 .count__unit b{font-family:var(--f-latin);font-weight:400;font-size:2rem;line-height:1}
 .count__unit span{font-weight:700;font-size:.875rem;color:var(--muted)}
+.count__unit span{white-space:nowrap}
+.next__preview .nw,.ep__preview .nw{max-width:100%}
+@media (max-width:420px){.count__row{gap:var(--s2);flex-wrap:wrap;row-gap:var(--s1)}.count__unit b{font-size:1.75rem}}
+@media (max-width:350px){.count__row{column-gap:10px}.count__unit b{font-size:1.5rem}}
 .onair{margin-top:var(--s4);display:inline-flex;align-items:center;gap:12px;font-family:var(--f-display);font-size:1.25rem;line-height:1.5}
 .onair i{width:12px;height:12px;border-radius:50%;background:var(--red);animation:blink 1.2s steps(2) infinite}
 @keyframes blink{50%{opacity:.25}}
 .next__label{font-weight:700;font-size:.875rem;line-height:1.7;color:var(--muted);margin-bottom:var(--s1)}
+.guests__note{margin:0 0 var(--s4);padding:14px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule-soft);font-weight:700;letter-spacing:.08em;color:var(--cream)}
 .guests{list-style:none;margin:0 0 var(--s4);padding:0;border-top:1px solid var(--rule)}
 .guest{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--rule-soft)}
 .guest__name{font-weight:700;font-size:1.125rem;line-height:1.6}
 .links{display:inline-flex;gap:var(--s1)}
-.next__preview{margin-bottom:var(--s4);line-height:1.75;max-width:34em;color:rgba(255,247,234,.88)}
+.next__preview{white-space:pre-line;margin-bottom:var(--s4);line-height:1.75;max-width:34em;color:rgba(255,247,234,.88)}
 .btns{display:flex;flex-wrap:wrap;gap:var(--s2)}
 .soon__mark{font-family:var(--f-latin);font-size:2.8125rem;line-height:1.15}
 .soon__mark span{display:inline-block}
@@ -205,7 +210,7 @@ main{position:relative;z-index:1}
 .ep__date{font-family:var(--f-latin);font-size:1rem;line-height:1.6;letter-spacing:.04em}
 .ep__date small{font-family:var(--f-body);font-weight:700;font-size:.875rem;margin-left:.2em}
 .ep__guests{margin-top:var(--s1);font-weight:700;line-height:1.7}
-.ep__preview{margin-top:4px;line-height:1.75;color:var(--muted);max-width:36em}
+.ep__preview{white-space:pre-line;margin-top:4px;line-height:1.75;color:var(--muted);max-width:36em}
 
 /* ---------- share ---------- */
 .sec--share{text-align:center;display:flex;flex-direction:column;align-items:center}
