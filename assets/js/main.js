@@ -166,45 +166,58 @@
   // section rules draw, the emblem fills with gold as you read.
   // =====================================================================
   const root = document.documentElement;
+  // where the browser can tie animations to the scroll position itself (scroll-driven animations),
+  // the title card's flight runs there, off the script's frame budget. Elsewhere script drives it.
+  const SDA = !REDUCE && !/[?&]nosda\b/.test(location.search) && !!(window.CSS && CSS.supports && CSS.supports('animation-timeline: scroll()'));
+  if (SDA) root.classList.add('sda');
   let L = null, ticking = false;
+  const last = {};
+  const put = (key, el, fn, v) => { if (last[key] !== v) { last[key] = v; fn(el, v); } };
 
   function measure() {
-    const hero = document.querySelector('.hero'), logo = $('hero-logo'), mb = $('menu-btn');
-    logo.style.setProperty('--lg-x', '0px'); logo.style.setProperty('--lg-y', '0px'); logo.style.setProperty('--lg-s', '1');
-    const r = logo.getBoundingClientRect(), stage = logo.parentElement.getBoundingClientRect();
-    mb.style.setProperty('--mb-o', 1); const tr = mb.querySelector('img').getBoundingClientRect(); mb.style.removeProperty('--mb-o');
-    const tw = tr.width * 1.08, th = tw * 507 / 1309;
-    L = { vh: window.innerHeight, heroTop: hero.offsetTop, heroRun: hero.offsetHeight - window.innerHeight,
-      dx: tr.left - (r.left - stage.left), dy: tr.top + tr.height / 2 - th * 0.4 - (r.top - stage.top), ds: tw / r.width,
-      tlStart: 0, tlLen: 1 };
+    const hero = document.querySelector('.hero'), logo = $('hero-logo'), stage = logo.parentElement, mb = $('menu-btn'), img = mb.querySelector('img');
+    // layout boxes (offset*) ignore transforms, so this works mid-flight too
+    const tw = img.offsetWidth * 1.08, th = tw * 507 / 1309;
+    const tLeft = mb.offsetLeft + mb.clientLeft + img.offsetLeft, tMid = mb.offsetTop + mb.clientTop + img.offsetTop + img.offsetHeight / 2;
+    L = { heroTop: hero.offsetTop, heroRun: Math.max(1, hero.offsetHeight - stage.offsetHeight),
+      dx: tLeft - logo.offsetLeft, dy: tMid - th * 0.4 - logo.offsetTop, ds: tw / logo.offsetWidth,
+      docH: root.scrollHeight, tlStart: 0, tlLen: 1 };
     const tl = $('archive');
-    if (!tl.hidden) { const b = tl.getBoundingClientRect(); L.tlStart = b.top + window.scrollY - L.vh * 0.7; L.tlLen = b.height * 0.8; }
+    if (!tl.hidden) { const b = tl.getBoundingClientRect(); L.tlStart = b.top + window.scrollY - window.innerHeight * 0.7; L.tlLen = b.height * 0.8; }
+    root.style.setProperty('--run', L.heroRun + 'px');
+    logo.style.setProperty('--lg-dx', L.dx + 'px'); logo.style.setProperty('--lg-dy', L.dy + 'px'); logo.style.setProperty('--lg-ds', L.ds);
+    for (const k in last) delete last[k];
   }
   function update() {
     ticking = false;
     if (!L) return;
-    const y = window.scrollY;
-    // the title card folds into the menu button
-    const p = clamp((y - L.heroTop) / Math.max(1, L.heroRun));
-    const e = easeInOut(clamp(p / 0.92));
-    const logo = $('hero-logo');
-    logo.style.setProperty('--lg-x', e * L.dx + 'px');
-    logo.style.setProperty('--lg-y', e * L.dy + 'px');
-    logo.style.setProperty('--lg-s', 1 + (L.ds - 1) * e);
+    const y = window.scrollY, vh = window.innerHeight;
+    const p = clamp((y - L.heroTop) / L.heroRun);
     const mo = clamp((p - 0.84) / 0.12);
-    logo.style.setProperty('--lg-o', 1 - mo);
-    const mb = $('menu-btn'); mb.style.setProperty('--mb-o', mo); mb.style.setProperty('--mb-v', mo > 0.01 ? 'visible' : 'hidden');
-    root.style.setProperty('--lead-o', 1 - clamp(p / 0.3));
+    // only flips when a threshold is crossed: the sheen rests while the title moves, the corner buttons become reachable
+    put('moving', root, (el, v) => el.classList.toggle('is-moving', v), p > 0.002);
+    put('docked', root, (el, v) => el.classList.toggle('is-docked', v), mo > 0.01);
+    if (!SDA) {
+      const e = easeInOut(clamp(p / 0.92));
+      const logo = $('hero-logo');
+      put('lg', logo, (el, v) => { el.style.transform = v; }, `translate3d(${(e * L.dx).toFixed(1)}px,${(e * L.dy).toFixed(1)}px,0) scale(${(1 + (L.ds - 1) * e).toFixed(4)})`);
+      put('lgo', logo, (el, v) => { el.style.opacity = v; }, (1 - mo).toFixed(3));
+      put('lead', logo.parentElement, (el, v) => el.style.setProperty('--lead-o', v), (1 - clamp(p / 0.3)).toFixed(3));
+      put('mbo', $('menu-btn'), (el, v) => el.style.setProperty('--mb-o', v), mo.toFixed(3));
+    }
     // the emblem fills with gold
-    const max = document.documentElement.scrollHeight - L.vh;
-    const g = clamp((y - L.heroRun) / Math.max(1, max - L.heroRun));
-    $('progress-fill').style.transform = `scaleY(${g})`;
-    root.style.setProperty('--pg-o', mo); root.style.setProperty('--mb-v', mo > 0.01 ? 'visible' : 'hidden');
+    const g = clamp((y - L.heroRun) / Math.max(1, L.docH - vh - L.heroRun));
+    put('pg', $('progress-fill'), (el, v) => { el.style.transform = `scaleY(${v})`; }, g.toFixed(3));
     // the archive timeline draws itself
-    root.style.setProperty('--tl', clamp((y - L.tlStart) / Math.max(1, L.tlLen)));
+    put('tl', $('timeline-bar'), (el, v) => { el.style.transform = `scaleY(${v})`; }, clamp((y - L.tlStart) / Math.max(1, L.tlLen)).toFixed(3));
   }
   function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(update); } }
-  function relayout() { if (REDUCE) return; measure(); update(); }
+  let relayoutQueued = false;
+  function relayout() {
+    if (REDUCE || relayoutQueued) return;
+    relayoutQueued = true;
+    requestAnimationFrame(() => { relayoutQueued = false; measure(); update(); });
+  }
 
   // reveal: section rules draw, the finale logo assembles again
   function reveals() {
