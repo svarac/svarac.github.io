@@ -23,6 +23,13 @@
       "photo": "assets/img/staff/kent.jpg",
       "x": "https://x.com/Kent_saikou",
       "spoon": "https://www.spooncast.net/jp/@djsoonjp"
+    },
+    {
+      "name": "じゅえる",
+      "role": "クイズマスター",
+      "photo": "assets/img/staff/jewel.jpg",
+      "x": "https://x.com/jewel_spn",
+      "spoon": "https://www.spooncast.net/jp/channel/316037347/tab/home"
     }
   ]
 }
