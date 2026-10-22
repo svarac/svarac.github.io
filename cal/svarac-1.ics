@@ -1,0 +1,25 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//SVARAC//LP//JA
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:svarac-1@svarac.github.io
+DTSTAMP:20261022T121654Z
+DTSTART:20261128T120000Z
+DTEND:20261128T140000Z
+SUMMARY:SVARAC@Kent枠
+DESCRIPTION:初回にして大一番。4人のゲストの前に立ちは
+ だかるのは、クイズマスター じゅえると多数の出題者
+ たち。\nクリエイター総動員で挑むリスナー参加型クイ
+ ズ大会「QUIZOON」を開催。\n霜月も暮れかかる夜、カオ
+ ス極まる盛大な幕切れをご堪能あれ。\nゲスト：後日発
+ 表\nSpoonで配信\nhttps://svarac.github.io/
+URL:https://svarac.github.io/
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT30M
+DESCRIPTION:SVARAC@Kent枠
+END:VALARM
+END:VEVENT
+END:VCALENDAR

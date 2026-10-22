@@ -38,6 +38,15 @@
 
 - `photo` は正方形の画像を `assets/img/staff/` に入れてパスを書く。省くと名前の1文字目が入ります
 
+### カレンダー
+
+- `calendarTitle`：「カレンダーに追加」で登録される予定の名前（いまは `SVARAC@Kent枠`）。回ごとに変えたいときは、その回に `calendarTitle` を書く
+- iPhone 用のボタンは `cal/svarac-<回>.ics` を開きます。**data.json を書き換えたら、リポジトリの一番上で次を実行してから公開する**
+
+```
+python3 tools/build_ics.py
+```
+
 ### links / hashtag
 
 - `links.x` `links.spoon`：番組の公式アカウント。入れるとフッターにボタンが出ます

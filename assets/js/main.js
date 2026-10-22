@@ -89,16 +89,18 @@
     if (o.spoon) a.push(`<a class="${cls}" href="${esc(o.spoon)}" target="_blank" rel="noopener" aria-label="${esc(o.name || '')}のSpoon（新しいタブで開く）">Spoon</a>`);
     return a.length ? `<span class="links">${a.join('')}</span>` : '';
   };
+  const SITE = 'https://svarac.github.io/';
+  const calTitle = (e) => e.calendarTitle || DATA.calendarTitle || 'SVARAC（スバラシー）';
+  const calDetails = (e) => [e.preview, e.guests.length ? `ゲスト：${e.guests.map((g) => g.name).join('、')}` : e.guestNote ? `ゲスト：${e.guestNote}` : '', 'Spoonで配信', SITE].filter(Boolean).join('\n');
+  // a short fingerprint so a changed episode never comes back from an old cache
+  const tag = (o) => { let h = 0; for (const c of JSON.stringify(o)) h = (h * 31 + c.charCodeAt(0)) | 0; return (h >>> 0).toString(36); };
   function calendarLinks(e) {
-    const title = `SVARAC（スバラシー）${e.no ? `第${e.no}回` : ''}`;
-    const details = [e.preview, e.guests.length ? `ゲスト：${e.guests.map((g) => g.name).join('、')}` : e.guestNote ? `ゲスト：${e.guestNote}` : '', 'Spoonで配信', location.href.split(/[?#]/)[0]].filter(Boolean).join('\n');
-    const g = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${utcStamp(e.s)}/${utcStamp(e.en)}&details=${encodeURIComponent(details)}`;
-    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SVARAC//LP//JA', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
-      `UID:svarac-${e.no || e.s}@svarac`, `DTSTAMP:${utcStamp(Date.now())}`, `DTSTART:${utcStamp(e.s)}`, `DTEND:${utcStamp(e.en)}`,
-      `SUMMARY:${title}`, `DESCRIPTION:${details.replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;')}`,
-      'BEGIN:VALARM', 'TRIGGER:-PT30M', 'ACTION:DISPLAY', `DESCRIPTION:${title}`, 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
-    return { google: g, ics: 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics), file: `svarac-${e.no || 'next'}.ics` };
+    const google = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(calTitle(e))}&dates=${utcStamp(e.s)}/${utcStamp(e.en)}&details=${encodeURIComponent(calDetails(e))}`;
+    // iPhone Safari only offers "add to calendar" for a real .ics file on the server; tools/build_ics.py writes one per episode
+    const ics = `cal/svarac-${e.no}.ics?v=${tag([calTitle(e), calDetails(e), e.s, e.en])}`;
+    return { google, ics };
   }
+
   const listenUrl = (e) => (e && e.spoon) || DATA.links.spoon || '';
 
   // ---------- sections
@@ -131,7 +133,7 @@
     const btns = st.onair
       ? (listen ? `<div class="btns"><a class="btn btn--lg btn--red" href="${esc(listen)}" target="_blank" rel="noopener">Spoonで聴く</a></div>` : '')
       : `<div class="btns"><a class="btn btn--lg btn--red" href="${cal.google}" target="_blank" rel="noopener">Googleカレンダーに追加</a>
-          <a class="btn btn--lg btn--line" href="${cal.ics}" download="${cal.file}">iPhoneなどのカレンダーに追加</a></div>`;
+          <a class="btn btn--lg btn--line" href="${cal.ics}">iPhoneなどのカレンダーに追加</a></div>`;
     box.innerHTML = left + `<div>${guests}${e.preview ? `<p class="next__preview">${prose(e.preview)}</p>` : ''}${btns}</div>`;
     tick();
   }
