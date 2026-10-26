@@ -31,6 +31,13 @@
       "photo": "assets/img/staff/jewel.jpg",
       "x": "https://x.com/jewel_spn",
       "spoon": "https://www.spooncast.net/jp/channel/316037347/tab/home"
+    },
+    {
+      "name": "ちゃんちゃん",
+      "role": "アシスタント",
+      "photo": "assets/img/staff/chanchan.jpg",
+      "x": "https://x.com/chanchan_spn",
+      "spoon": "https://spoon.onelink.me/Uuzo/srg3zq6v"
     }
   ]
 }
