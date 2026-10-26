@@ -6,9 +6,10 @@
   --rule:rgba(255,194,26,.42); --rule-soft:rgba(255,247,234,.14);
   --field:#FFFDF8; --field-ink:#141414; --field-line:#8A8079;
   --err:#FF7A73; --ok:#3CC48A; --focus:#FFD43D;
-  --f-display:"Dela Gothic One","Noto Sans JP",sans-serif;
-  --f-latin:"Bowlby One","Dela Gothic One",sans-serif;
-  --f-body:"Noto Sans JP",sans-serif;
+  /* one plain, document-style typeface everywhere (internal page: readability over display type) */
+  --f-body:"BIZ UDPGothic","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo",sans-serif;
+  --f-display:var(--f-body);
+  --f-latin:var(--f-body);
   --s1:8px; --s2:16px; --s3:24px; --s4:40px; --s5:64px;
   --radius:12px; --radius-ui:8px; --max:640px;
 }
@@ -20,13 +21,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
              radial-gradient(ellipse 90% 34% at 50% 110%,rgba(122,9,16,.45),transparent 70%)}
 img{display:block;max-width:100%}
 p{margin:0;word-break:auto-phrase}
-h1,h2,h3{margin:0;font-weight:400}
+h1,h2,h3{margin:0;font-weight:700}
 button,input,textarea,select{font:inherit;letter-spacing:inherit}
 [hidden]{display:none !important}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 :focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 a{color:var(--gold-hi);text-underline-offset:3px}
 .wrap{width:100%;max-width:var(--max);margin:0 auto;padding:0 16px}
+
+.top__thanks,.big__title,.bar__title,.card__h,.card__h .no,.choice__k,.seg span,.opts .k,.done__msg{font-weight:700}
 
 /* ---------- top ---------- */
 .top{min-height:100vh;min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s4);padding:var(--s5) 16px var(--s4);text-align:center}

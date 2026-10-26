@@ -18,7 +18,7 @@
 .adm-filter-row .select,.adm-filter-row .input{min-height:48px;padding:10px 14px}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chip{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px;border-radius:999px;border:1px solid rgba(255,247,234,.35);background:transparent;color:var(--cream);font-weight:700;font-size:.875rem;cursor:pointer}
-.chip b{font-family:var(--f-latin);font-weight:400;font-size:.9375rem}
+.chip b{font-family:var(--f-latin);font-weight:700;font-size:.9375rem}
 .chip[aria-pressed="true"]{background:var(--cream);color:var(--ink);border-color:var(--cream)}
 @media (hover:hover){.chip:hover{border-color:var(--cream)}}
 
@@ -84,3 +84,4 @@
 .xline a{font-weight:700}
 .links{display:grid;gap:10px}
 .danger{color:var(--err);border-color:var(--err)}
+.adm-login h1,.adm-h,.d-name,.qv__h .no{font-weight:700}
