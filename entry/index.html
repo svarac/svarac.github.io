@@ -6,18 +6,18 @@
 <title>出演者さま提出ページ｜SVARAC（スバラシー）</title>
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#141414">
-<link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
-<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/entry.css?v=4">
+<link rel="stylesheet" href="assets/entry.css?v=5">
 </head>
 <body>
 
 <!-- top -->
 <main class="top" id="v-top">
-  <h1 class="top__logo"><img src="../assets/img/logo_full.svg" alt="SVARAC スバラシー！" width="1309" height="507"></h1>
+  <h1 class="top__logo"><img src="assets/img/logo_full.svg" alt="SVARAC スバラシー！" width="1309" height="507"></h1>
   <div>
     <p class="top__eyebrow">出演者さま 提出ページ</p>
     <p class="top__thanks">ご協力くださり<br>ありがとうございます</p>
@@ -40,7 +40,7 @@
   <header class="bar">
     <a class="bar__back" href="#top"><span class="bar__icon"></span>トップ</a>
     <h1 class="bar__title" id="form-title"></h1>
-    <img class="bar__logo" src="../assets/img/logo_svarac_mono-white.svg" alt="SVARAC" width="72" height="22">
+    <img class="bar__logo" src="assets/img/logo_svarac_mono-white.svg" alt="SVARAC" width="72" height="22">
   </header>
   <div class="wrap page">
     <div id="form-quiz" hidden></div>
@@ -49,11 +49,26 @@
   </div>
 </div>
 
+<!-- shown only if the page's scripts could not start (very old browser, a file failed to load, scripts turned off) -->
+<div class="boot-fail" id="boot-fail" hidden>
+  <p><b>ページを正しく表示できませんでした。</b></p>
+  <p>再読み込みするか、別のブラウザ（Safari・Chrome など）でお試しください。それでも開けない場合は、お手数ですが運営へDMでご連絡ください。</p>
+</div>
+<noscript><div class="boot-fail"><p>このページを使うには JavaScript を有効にしてください。難しい場合は、お手数ですが運営へDMでご連絡ください。</p></div></noscript>
+
 <footer class="foot">© SVARAC</footer>
 
-<script src="config.js?v=4"></script>
-<script src="assets/common.js?v=4"></script>
-<script src="assets/forms.js?v=4"></script>
-<script src="assets/public.js?v=4"></script>
+<script>
+  /* plain old JavaScript on purpose, so it still runs where the main scripts can't */
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      if (!window.SV_OK) { var d = document.getElementById('boot-fail'); if (d) d.hidden = false; var t = document.getElementById('v-top'); if (t) t.style.display = 'none'; }
+    }, 300);
+  });
+</script>
+<script src="config.js?v=5"></script>
+<script src="assets/common.js?v=5"></script>
+<script src="assets/forms.js?v=5"></script>
+<script src="assets/public.js?v=5"></script>
 </body>
 </html>

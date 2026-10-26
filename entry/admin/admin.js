@@ -4,11 +4,7 @@
   const SV = window.SV, $ = SV.$, $$ = SV.$$, esc = SV.esc;
   const app = $('#app');
   const KEY = 'svarac_admin_pw';
-  const local = {
-    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
-    del: function (k) { try { localStorage.removeItem(k); } catch (e) { /* private mode */ } },
-  };
+  const local = SV.local;
   const STATUS = ['', '新着', '再提出', '不備あり', 'OK'];
   const ST_LABEL = { '': '未提出', '新着': '未確認', '再提出': '再提出', '不備あり': '不備あり', 'OK': 'OK' };
   const ST_CLASS = { '': 'st-none', '新着': 'st-new', '再提出': 'st-re', '不備あり': 'st-ng', 'OK': 'st-ok' };
@@ -42,16 +38,7 @@
   function shortAt(at) { return at ? String(at).slice(5, 16) : ''; }
   function typeLabel(t) { return t === 'B' ? 'B ボイメのみ' : 'A クイズ案＋ボイメ'; }
   function stBadge(s) { s = s || ''; return '<span class="st ' + ST_CLASS[s] + '">' + ST_LABEL[s] + '</span>'; }
-  function copy(text) {
-    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
-    return new Promise(function (resolve, reject) {
-      const t = document.createElement('textarea');
-      t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
-      document.body.appendChild(t); t.select();
-      const ok = document.execCommand('copy'); t.remove();
-      ok ? resolve() : reject(new Error('copy failed'));
-    });
-  }
+  const copy = SV.copy;
   function save(blob, name) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -78,7 +65,7 @@
   function shell(opt, body) {
     const back = opt.back !== undefined
       ? '<a class="bar__back" href="' + opt.back + '">' + SV.icon.back + (opt.backLabel || '一覧') + '</a>'
-      : '<img class="bar__logo" src="../../assets/img/logo_svarac_mono-white.svg" alt="SVARAC" width="72" height="22">';
+      : '<img class="bar__logo" src="../assets/img/logo_svarac_mono-white.svg" alt="SVARAC" width="72" height="22">';
     app.innerHTML =
       '<header class="bar adm-bar">' + back + '<h1 class="bar__title">' + esc(opt.title || '提出管理') + '</h1>' +
         '<nav class="adm-bar__nav">' + (opt.hideSettings ? '' : '<a class="btn btn--ghost btn--sm" href="#settings">設定</a>') + '</nav>' +
@@ -96,7 +83,7 @@
   function renderLogin(msg) {
     app.innerHTML =
       '<main class="wrap adm-login">' +
-        '<img src="../../assets/img/logo_full.svg" alt="SVARAC" width="1309" height="507">' +
+        '<img src="../assets/img/logo_full.svg" alt="SVARAC" width="1309" height="507">' +
         '<h1>提出管理</h1>' +
         (SV.ready ? '' : '<p class="notice notice--err">config.js に受け皿のURLがまだ入っていません。</p>') +
         '<form class="card" novalidate>' +
@@ -166,7 +153,9 @@
       ['', '未提出', count(function (g) { return !g.status; })],
       ['OK', 'OK', count(function (g) { return g.status === 'OK'; })],
     ];
+    const errs = D.errors || [];
     shell({},
+      (errs.length ? '<p class="notice notice--err" style="margin-bottom:16px">直近7日で、受け皿に想定外のエラーが' + errs.length + '件ありました（最新：' + esc(errs[0].at.slice(5, 16)) + '）。送れなかったゲストがいないか確認してください。くわしくはスプレッドシートの「エラー記録」シートにあります。</p>' : '') +
       '<div class="adm-head"><h2 class="adm-h">ゲスト一覧<small>' + all.length + '人</small></h2><a class="btn btn--gold" href="#new">＋ ゲストを登録</a></div>' +
       (all.length ? '<div class="adm-filters">' +
         '<div class="chips">' + chips.map(function (c) {
@@ -432,13 +421,14 @@
         '</div>' +
       '</form>');
     const form = $('#ed'), err = $('#ed-err');
+    let newId = g ? '' : SV.sid('g');
     if (!g) $('#ed-name').focus();
     let mode = 'save';
     $$('button[type=submit]', form).forEach(function (b) { b.addEventListener('click', function () { mode = b.getAttribute('data-mode'); }); });
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       const data = {
-        id: g ? g.id : undefined,
+        id: g ? g.id : newId,
         name: $('#ed-name').value.trim(), yomi: $('#ed-yomi').value.trim(), x: $('#ed-x').value.trim(),
         type: ($('input[name=ed-type]:checked') || {}).value || 'A', date: $('#ed-date').value.trim(), open: $('#ed-open').checked,
       };
@@ -449,10 +439,11 @@
       const btns = $$('button', form);
       btns.forEach(function (b) { b.disabled = true; });
       err.hidden = true;
-      A('saveGuest', { guest: data }).then(function (r) {
+      A('saveGuest', { guest: data, create: !g }).then(function (r) {
         return load().then(function () { return r.guest; });
       }).then(function (saved) {
         if (mode === 'next') {
+          newId = SV.sid('g');
           SV.toast('登録しました：' + saved.name);
           $('#ed-name').value = ''; $('#ed-yomi').value = ''; $('#ed-x').value = '';
           btns.forEach(function (b) { b.disabled = false; });
@@ -468,7 +459,7 @@
     });
     if ($('#ed-del')) {
       $('#ed-del').addEventListener('click', function () {
-        if (!window.confirm('「' + g.name + '」を削除しますか？\n提出済みのクイズ案・音源は消えずに残ります。')) return;
+        if (!window.confirm('「' + g.name + '」を削除しますか？\n提出済みのクイズ案・音源は消えずに残り、「設定」の「削除したゲスト」からいつでも元に戻せます。')) return;
         A('deleteGuest', { id: g.id }).then(load).then(function () { SV.toast('削除しました'); location.hash = '#'; }, function (e2) { SV.toast(e2.message); });
       });
     }
@@ -514,7 +505,15 @@
       '</section>' +
       '<div class="actions"><button type="submit" class="btn btn--red btn--lg btn--block">設定を保存</button></div>' +
       '</form>' +
-      '<section class="card" style="margin-top:var(--s4)"><h2 class="card__h">データの保存先</h2><div class="links">' +
+      '<section class="card" style="margin-top:var(--s4)"><h2 class="card__h">削除したゲスト</h2>' +
+        ((D.trash || []).length
+          ? '<ul class="glist">' + D.trash.map(function (t) {
+            return '<li class="grow" style="align-items:center"><div class="grow__main"><div class="grow__name">' + esc(t.name) + '<small>' + esc(t.yomi) + '</small></div>' +
+              '<span class="grow__at">削除 ' + esc(shortAt(t.deleted)) + '</span></div><button type="button" class="btn btn--line btn--sm" data-restore="' + esc(t.id) + '">元に戻す</button></li>';
+          }).join('') + '</ul>'
+          : '<p class="empty">ありません。</p>') +
+      '</section>' +
+      '<section class="card"><h2 class="card__h">データの保存先</h2><div class="links">' +
         '<a class="btn btn--line" href="' + esc(D.links.sheet) + '" target="_blank" rel="noopener">スプレッドシートを開く</a>' +
         '<a class="btn btn--line" href="' + esc(D.links.folder) + '" target="_blank" rel="noopener">音源フォルダ（ドライブ）を開く</a>' +
         '<a class="btn btn--line" href="../" target="_blank" rel="noopener">公開ページを開く</a>' +
@@ -530,6 +529,15 @@
         .finally(function () { btn.disabled = false; });
     });
     $('#logout').addEventListener('click', logout);
+    $$('[data-restore]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        b.disabled = true;
+        A('restoreGuest', { id: b.getAttribute('data-restore') }).then(load).then(function () {
+          SV.toast('元に戻しました');
+          renderSettings();
+        }, function (e2) { b.disabled = false; SV.toast(e2.message); });
+      });
+    });
   }
 
   /* ---------- router ---------- */

@@ -202,3 +202,14 @@ a{color:var(--gold-hi);text-underline-offset:3px}
 
 .loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:var(--s4) 0;color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:24px;z-index:100;transform:translateX(-50%);max-width:calc(100% - 32px);padding:12px 18px;border-radius:var(--radius-ui);background:var(--cream);color:var(--ink);font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+
+/* safety: fallback when sending keeps failing, restored drafts, page-level problems */
+.fallback{margin-top:var(--s2);padding:16px;border:1px dashed var(--rule);border-radius:var(--radius);background:rgba(255,194,26,.05)}
+.fallback__h{font-weight:700;margin-bottom:4px}
+.fallback__t{font-size:.875rem;line-height:1.8;color:rgba(255,247,234,.88);margin-bottom:12px}
+.linkbtn{padding:0;border:0;background:none;color:var(--gold-hi);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.restored{margin-bottom:var(--s2)}
+.sending__note{text-align:center}
+.crash{position:fixed;left:16px;right:16px;bottom:16px;z-index:200;display:flex;align-items:center;gap:12px;flex-wrap:wrap;max-width:640px;margin:0 auto;padding:14px 16px;border-radius:var(--radius);background:var(--cream);color:var(--ink);box-shadow:0 12px 32px rgba(0,0,0,.5);font-size:.875rem;line-height:1.7}
+.crash p{flex:1 1 240px}
+.boot-fail{max-width:640px;margin:var(--s4) auto;padding:20px 16px;border-radius:var(--radius);background:var(--raised);border:1px solid var(--rule);line-height:1.8}

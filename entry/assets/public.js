@@ -14,6 +14,7 @@
   if (!SV.ready) {
     $$('.big').forEach(function (b) { b.setAttribute('aria-disabled', 'true'); b.removeAttribute('href'); });
     $('#top-note').textContent = '受付の準備中です。運営からのご案内をお待ちください。';
+    window.SV_OK = true;
     return;
   }
 
@@ -64,7 +65,9 @@
     if (guests) { show(kind); return; }
     state.innerHTML = '<div class="loading"><span class="spin"></span>読み込んでいます…</div>';
     load().then(function () { show(kind); }, function (err) {
-      state.innerHTML = '<p class="notice notice--err">' + SV.esc(err.message) + '</p><div class="actions"><button type="button" class="btn btn--line btn--lg btn--block" id="retry">もう一度読み込む</button></div>';
+      state.innerHTML = '<p class="notice notice--err">' + SV.esc(err.message) + '</p>' +
+        '<div class="actions"><button type="button" class="btn btn--line btn--lg btn--block" id="retry">もう一度読み込む</button></div>' +
+        '<div class="fallback"><p class="fallback__h">しばらくしても開けないときは</p><p class="fallback__t">お手数ですが、運営へDMでご連絡ください。クイズ案は文章で、音源はギガファイル便のURLでお送りいただければ大丈夫です。</p></div>';
       $('#retry').addEventListener('click', route);
     });
   }
@@ -77,4 +80,5 @@
 
   window.addEventListener('hashchange', route);
   route();
+  window.SV_OK = true;
 })();

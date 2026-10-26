@@ -1,6 +1,13 @@
 /* SVARAC 出演者提出ページ — shared helpers (API, name search, audio drop zones). */
 (function () {
   'use strict';
+  // older Safari lacks Promise#finally
+  if (typeof Promise !== 'undefined' && !Promise.prototype.finally) {
+    Promise.prototype.finally = function (fn) {
+      return this.then(function (v) { return Promise.resolve(fn()).then(function () { return v; }); },
+        function (e) { return Promise.resolve(fn()).then(function () { throw e; }); });
+    };
+  }
   const SV = (window.SV = window.SV || {});
   const cfg = window.SVARAC_ENTRY || {};
   SV.apiUrl = cfg.api || '';
@@ -9,12 +16,13 @@
   SV.AUDIO_EXT = ['mp3', 'wav', 'm4a', 'aac', 'aif', 'aiff', 'flac', 'ogg', 'oga', 'opus', 'webm', 'mp4', 'caf', 'wma'];
 
   /* ---------- API ----------
-     text/plain POST keeps the request "simple", so Apps Script needs no CORS preflight. */
-  SV.api = function (action, data, opt) {
-    opt = opt || {};
-    if (!SV.ready) return Promise.reject(new Error('受付の準備中です。しばらくしてからお試しください'));
+     text/plain POST keeps the request "simple", so Apps Script needs no CORS preflight.
+     Network trouble, timeouts and "busy / temporary error" answers are retried automatically;
+     every write carries an id (sid) so a retry can never create a second copy. */
+  function once(action, data, opt) {
     const ctl = typeof AbortController === 'function' ? new AbortController() : null;
     const timer = ctl ? setTimeout(function () { ctl.abort(); }, opt.timeout || 180000) : 0;
+    const mk = function (msg, retryable) { const e = new Error(msg); e.retryable = !!retryable; return e; };
     return fetch(SV.apiUrl, {
       method: 'POST',
       body: JSON.stringify(Object.assign({ action: action }, data || {})),
@@ -23,14 +31,32 @@
     }).then(function (res) {
       return res.text().then(function (txt) {
         let json;
-        try { json = JSON.parse(txt); } catch (e) { throw new Error('通信に失敗しました（' + res.status + '）。もう一度お試しください'); }
-        if (!json.ok) throw new Error(json.error || 'エラーが発生しました');
+        try { json = JSON.parse(txt); } catch (e) { throw mk('通信に失敗しました（' + res.status + '）。少し待ってからもう一度お試しください', true); }
+        if (!json || !json.ok) throw mk((json && json.error) || 'エラーが発生しました', json && json.retry);
         return json;
       });
     }, function (err) {
-      if (err && err.name === 'AbortError') throw new Error('時間がかかりすぎたため中断しました。電波の良いところでもう一度お試しください');
-      throw new Error('通信に失敗しました。電波の良いところでもう一度お試しください');
-    }).finally(function () { clearTimeout(timer); });
+      if (err && err.name === 'AbortError') throw mk('時間がかかりすぎたため中断しました。電波の良いところでもう一度お試しください', true);
+      throw mk('通信に失敗しました。電波の良いところでもう一度お試しください', true);
+    }).then(function (v) { clearTimeout(timer); return v; }, function (e) { clearTimeout(timer); throw e; });
+  }
+  SV.api = function (action, data, opt) {
+    opt = opt || {};
+    if (!SV.ready) return Promise.reject(new Error('受付の準備中です。しばらくしてからお試しください'));
+    const max = opt.retries === undefined ? 2 : opt.retries;
+    let n = 0;
+    const go = function () {
+      return once(action, data, opt).catch(function (err) {
+        if (!err.retryable || n >= max) throw err;
+        n++;
+        if (opt.onRetry) opt.onRetry(n);
+        return new Promise(function (r) { setTimeout(r, n === 1 ? 2000 : 5000); }).then(go);
+      });
+    };
+    return go();
+  };
+  SV.sid = function (prefix) {
+    return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
   };
 
   /* ---------- small utils ---------- */
@@ -90,6 +116,29 @@
     clearTimeout(t._h);
     t._h = setTimeout(function () { t.hidden = true; }, 2400);
   };
+  // remembered on this device only (drafts, "stay logged in"); never required for anything to work
+  SV.local = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage full / private mode */ } },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) { /* private mode */ } },
+  };
+  SV.copy = function (text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).catch(function () { return legacyCopy(text); });
+    }
+    return legacyCopy(text);
+  };
+  function legacyCopy(text) {
+    return new Promise(function (resolve, reject) {
+      const t = document.createElement('textarea');
+      t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      t.remove();
+      ok ? resolve() : reject(new Error('copy failed'));
+    });
+  }
   SV.store = {
     get: function (k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
     set: function (k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* private mode */ } },
@@ -279,6 +328,23 @@
     };
     return api;
   };
+  /* ---------- safety net ----------
+     If something in our own scripts breaks, say so plainly and offer a reload and a way to reach the team. */
+  SV.crash = function () {
+    if (document.getElementById('sv-crash')) return;
+    const d = document.createElement('div');
+    d.id = 'sv-crash';
+    d.className = 'crash';
+    d.setAttribute('role', 'alert');
+    d.innerHTML = '<p><b>ページの一部がうまく動いていません。</b><br>再読み込みしても直らない場合は、お手数ですが運営へDMでご連絡ください（入力途中の文字はこの端末に保存されています）。</p>' +
+      '<button type="button" class="btn btn--gold btn--sm">再読み込み</button>';
+    d.querySelector('button').addEventListener('click', function () { location.reload(); });
+    document.body.appendChild(d);
+  };
+  window.addEventListener('error', function (e) {
+    if (e && e.filename && e.filename.indexOf('/entry/') >= 0) SV.crash();
+  });
+
   // paste an audio file (copied in Finder/Explorer) into the zone under the pointer, else the first empty one
   document.addEventListener('paste', function (e) {
     const zones = SV._zones || [];

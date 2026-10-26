@@ -1,11 +1,15 @@
 /* SVARAC 出演者提出ページ — the two submission flows (edit → confirm → send → done).
-   Used by the public page and, for proxy entry, by the admin page. */
+   Used by the public page and, for proxy entry, by the admin page.
+   Safety: drafts are kept on the device, leaving with unsent input asks first, sends are retried
+   automatically and can never be stored twice, and if sending keeps failing the guest can copy
+   everything they typed to send it by DM instead. */
 (function () {
   'use strict';
   const SV = window.SV;
-  const esc = SV.esc, $ = SV.$, $$ = SV.$$;
+  const esc = SV.esc, $ = SV.$;
   let uidN = 0;
   const KEYS = ['a', 'b', 'c', 'd'];
+  const DRAFT_DAYS = 14;
 
   function tag(req) { return req ? '<span class="tag tag--req">必須</span>' : '<span class="tag tag--opt">任意</span>'; }
 
@@ -14,7 +18,7 @@
       '<div class="field">' +
         '<label for="' + u + '-name">お名前 ' + tag(true) + '</label>' +
         '<div class="combo"><input class="input" id="' + u + '-name" placeholder="読みの1文字目を入力（例：や）" aria-describedby="' + u + '-name-hint"><span class="combo__ok">' + SV.icon.check.replace('<svg', '<svg width="14" height="14"') + '選択済み</span></div>' +
-        '<p class="hint" id="' + u + '-name-hint">読みの1文字目を入れると候補が出ます。候補からお選びください。<br>' + hint + '</p>' +
+        '<p class="hint" id="' + u + '-name-hint">読みの1文字目を入れると候補が出ます。候補からお選びください。<br>' + hint + '候補に出てこない場合は、お手数ですが運営までご連絡ください。</p>' +
         '<p class="err"></p>' +
       '</div>' +
       '<div class="resub" hidden></div>' +
@@ -57,21 +61,79 @@
     return v;
   }
 
+  /** asks before closing / reloading the tab while something is typed but not sent, or while sending */
+  function leaveGuard() {
+    const st = { dirty: false, busy: false, done: false };
+    const h = function (e) {
+      if (st.done || !(st.dirty || st.busy)) return undefined;
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', h);
+    st.release = function () { st.done = true; window.removeEventListener('beforeunload', h); };
+    return st;
+  }
+
+  /** what the guest typed, kept on this device so a reload or a closed tab loses nothing */
+  function draftStore(kind, enabled) {
+    const key = 'svarac_draft_' + kind;
+    return {
+      load: function () {
+        if (!enabled) return null;
+        const raw = SV.local.get(key);
+        if (!raw) return null;
+        try {
+          const d = JSON.parse(raw);
+          if (d && Date.now() - d.at < DRAFT_DAYS * 864e5) return d;
+        } catch (e) { /* broken draft */ }
+        SV.local.del(key);
+        return null;
+      },
+      save: function (d) { if (enabled) { d.at = Date.now(); SV.local.set(key, JSON.stringify(d)); } },
+      clear: function () { SV.local.del(key); },
+    };
+  }
+
+  function restoredNotice(text) {
+    return '<div class="notice restored">' + text + ' <button type="button" class="linkbtn" data-act="discard">消して最初から入力する</button></div>';
+  }
+
   function confirmActions() {
     return '<div class="notice notice--err send-err" role="alert" hidden></div>' +
+      '<div class="fallback" hidden>' +
+        '<p class="fallback__h">何度試しても送れないときは</p>' +
+        '<p class="fallback__t"></p>' +
+        '<button type="button" class="btn btn--line btn--block" data-act="copy">入力内容をコピーする</button>' +
+      '</div>' +
       '<div class="actions send-btns">' +
         '<button type="button" class="btn btn--red btn--lg btn--block" data-act="send">この内容で送信する</button>' +
         '<button type="button" class="btn btn--line btn--lg btn--block" data-act="edit">修正する</button>' +
       '</div>' +
-      '<div class="sending" hidden><p class="progress" aria-live="polite">送信しています…</p><div class="bar-ind"><i></i></div></div>';
+      '<div class="sending" hidden><p class="progress" aria-live="polite">送信しています…</p><div class="bar-ind"><i></i></div><p class="hint sending__note">送信が終わるまで、このページを閉じずにお待ちください。</p></div>';
   }
 
-  function sendingUI(box) {
+  function sendingUI(box, fallback) {
     const err = $('.send-err', box), btns = $('.send-btns', box), sending = $('.sending', box), prog = $('.progress', box);
+    const fb = $('.fallback', box);
+    $('.fallback__t', fb).textContent = fallback.hint;
+    $('[data-act="copy"]', fb).addEventListener('click', function () {
+      SV.copy(fallback.text()).then(function () { SV.toast('コピーしました。運営へのDMに貼り付けてください'); },
+        function () { SV.toast('コピーできませんでした。お手数ですが画面を撮影して運営へお送りください'); });
+    });
+    let fails = 0;
     return {
       start: function (msg) { err.hidden = true; btns.hidden = true; sending.hidden = false; prog.textContent = msg || '送信しています…'; },
       step: function (msg) { prog.textContent = msg; },
-      fail: function (msg) { sending.hidden = true; btns.hidden = false; err.hidden = false; err.textContent = msg + '（入力内容はそのまま残っています）'; err.scrollIntoView({ block: 'center' }); },
+      retrying: function () { prog.textContent = '通信が不安定なため、自動でもう一度送っています…'; },
+      fail: function (msg) {
+        fails++;
+        sending.hidden = true; btns.hidden = false; err.hidden = false;
+        err.textContent = msg + '（入力内容はそのまま残っています）';
+        fb.hidden = false;
+        if (fails > 1) $('[data-act="send"]', box).textContent = 'もう一度送信する';
+        err.scrollIntoView({ block: 'center' });
+      },
     };
   }
 
@@ -89,8 +151,8 @@
     $('.done__msg', v.done).focus();
   }
 
-  function guestPicker(v, u, opts, filter) {
-    if (opts.guest) return { get: function () { return opts.guest; } };
+  function guestPicker(v, opts, filter) {
+    if (opts.guest) return { get: function () { return opts.guest; }, set: function () {} };
     const field = $('[data-f="name"]', v.edit);
     return SV.combobox($('.combo', field), {
       items: function () { return (opts.guests() || []).filter(filter); },
@@ -101,11 +163,19 @@
     });
   }
 
+  function findGuest(opts, id, filter) {
+    return (opts.guests ? opts.guests() || [] : []).filter(function (g) { return g.id === id && filter(g); })[0] || null;
+  }
+
   /* ================= クイズ案 ================= */
   SV.QuizFlow = function (root, opts) {
     const u = 'qz' + (++uidN);
     const v = views(root);
     const proxy = !!opts.guest;
+    const guard = leaveGuard();
+    const drafts = draftStore('quiz', !proxy);
+    const isQuizGuest = function (g) { return g.type !== 'B'; };
+    let draftTimer = 0;
 
     function qBlock(n) {
       const p = u + '-q' + n;
@@ -130,7 +200,8 @@
     }
 
     v.edit.innerHTML = '<form novalidate>' +
-      (proxy ? proxyBanner(opts.guest) : '<p class="lead">クイズを2問ご提出ください。選択肢はA〜Dの4つ、正解を1つ選んでください。</p>') +
+      (proxy ? proxyBanner(opts.guest) : '<p class="lead">クイズを2問ご提出ください。選択肢はA〜Dの4つ、正解を1つ選んでください。<br>入力した内容はこの端末に自動で保存されます。</p>') +
+      '<div class="restore-box"></div>' +
       '<div class="notice notice--err form-err" role="alert" hidden></div>' +
       (proxy ? '' : nameField(u, 'ボイメのみのご依頼の方は、クイズ案の提出は不要です。')) +
       qBlock(1) + qBlock(2) +
@@ -141,17 +212,18 @@
     const form = $('form', v.edit);
     const formErr = $('.form-err', v.edit);
 
-    const picker = guestPicker(v, u, Object.assign({}, opts, {
+    const picker = guestPicker(v, Object.assign({}, opts, {
       onGuest: function (g) {
         const box = $('.resub', v.edit);
-        if (!box) return;
-        box.hidden = !(g && g.done && g.done.quiz);
-        box.innerHTML = '<p class="notice">すでにクイズ案をご提出いただいています。もう一度送ると最新の内容に差し替わります（前回の内容も運営側で保管しています）。</p>';
+        if (box) {
+          box.hidden = !(g && g.done && g.done.quiz);
+          box.innerHTML = '<p class="notice">すでにクイズ案をご提出いただいています。もう一度送ると最新の内容に差し替わります（前回の内容も運営側で保管しています）。</p>';
+        }
+        saveDraftSoon();
       },
-    }), function (g) { return g.type !== 'B'; });
+    }), isQuizGuest);
 
-    if (opts.prefill) {
-      const r = opts.prefill;
+    function fill(r) {
       [1, 2].forEach(function (n) {
         const sec = $('[data-q="' + n + '"]', v.edit);
         $('textarea', sec).value = r['q' + n] || '';
@@ -173,6 +245,44 @@
         }),
         note: $('#' + u + '-note').value.trim(),
       };
+    }
+
+    // --- drafts ---
+    function saveDraftSoon() {
+      clearTimeout(draftTimer);
+      draftTimer = setTimeout(function () {
+        const d = collect();
+        const flat = { guestId: d.guest ? d.guest.id : '', note: d.note };
+        let any = !!(d.guest || d.note);
+        d.questions.forEach(function (q, i) {
+          const p = 'q' + (i + 1);
+          flat[p] = q.text; flat[p + 'ans'] = q.ans;
+          KEYS.forEach(function (k) { flat[p + k] = q[k]; });
+          if (q.text || q.ans || KEYS.some(function (k) { return q[k]; })) any = true;
+        });
+        guard.dirty = any;
+        if (any) drafts.save(flat); else drafts.clear();
+      }, 300);
+    }
+    form.addEventListener('input', saveDraftSoon);
+    form.addEventListener('change', saveDraftSoon);
+
+    if (opts.prefill) fill(opts.prefill);
+    const saved = drafts.load();
+    if (saved) {
+      fill(saved);
+      const g = saved.guestId ? findGuest(opts, saved.guestId, isQuizGuest) : null;
+      if (g) picker.set(g);
+      guard.dirty = true;
+      const box = $('.restore-box', v.edit);
+      box.innerHTML = restoredNotice('前回入力途中だった内容を復元しました。');
+      $('[data-act="discard"]', box).addEventListener('click', function () {
+        drafts.clear();
+        form.reset();
+        picker.set(null);
+        guard.dirty = false;
+        box.innerHTML = '';
+      });
     }
 
     function validate(d) {
@@ -211,7 +321,7 @@
       syncSummary(v.edit);
     });
 
-    let data = null;
+    let data = null, sid = '', busy = false;
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       data = collect();
@@ -219,7 +329,14 @@
       showConfirm();
     });
 
+    function asText(d) {
+      return '【SVARAC クイズ案】\nお名前：' + d.guest.name + '\n\n' + d.questions.map(function (q, i) {
+        return '■第' + (i + 1) + '問\n' + q.text + '\n' + KEYS.map(function (k) { return k.toUpperCase() + '. ' + q[k]; }).join('\n') + '\n正解：' + q.ans;
+      }).join('\n\n') + (d.note ? '\n\n備考：' + d.note : '');
+    }
+
     function showConfirm() {
+      sid = SV.sid('q');   // the same id for every retry of this send, so it can only be stored once
       v.confirm.innerHTML =
         '<p class="lead">以下の内容で送信します。よろしければ「この内容で送信する」を押してください。</p>' +
         '<section class="card"><dl class="dl"><div><dt>お名前</dt><dd>' + esc(data.guest.name) + '</dd></div></dl></section>' +
@@ -234,16 +351,26 @@
         }).join('') +
         '<section class="card"><dl class="dl"><div><dt>備考・メッセージ</dt><dd>' + (data.note ? esc(data.note) : '<span class="empty">なし</span>') + '</dd></div></dl></section>' +
         confirmActions();
-      const ui = sendingUI(v.confirm);
+      const ui = sendingUI(v.confirm, {
+        hint: 'お手数ですが、下のボタンで入力内容をコピーして、運営へDMでお送りください。',
+        text: function () { return asText(data); },
+      });
       $('[data-act="edit"]', v.confirm).addEventListener('click', function () { v.show('edit'); });
       $('[data-act="send"]', v.confirm).addEventListener('click', function () {
+        if (busy) return;
+        busy = true; guard.busy = true;
         ui.start('送信しています…');
-        SV.api('submitQuiz', { guestId: data.guest.id, questions: data.questions, note: data.note, pw: opts.pw })
+        SV.api('submitQuiz', { sid: sid, guestId: data.guest.id, questions: data.questions, note: data.note, pw: opts.pw }, { onRetry: ui.retrying })
           .then(function () {
+            busy = false;
+            drafts.clear();
+            guard.release();
             if (opts.onSubmitted) opts.onSubmitted(data.guest, 'quiz');
             doneView(v, proxy ? '代理入力で保存しました。' : 'ありがとうございます！<br>2日を目処にご連絡します。', opts);
-          })
-          .catch(function (err) { ui.fail(err.message); });
+          }, function (err) {
+            busy = false; guard.busy = false;
+            ui.fail(err.message);
+          });
       });
       v.show('confirm');
     }
@@ -254,9 +381,14 @@
     const u = 'vm' + (++uidN);
     const v = views(root);
     const proxy = !!opts.guest;
+    const guard = leaveGuard();
+    const drafts = draftStore('voice', !proxy);
+    const anyGuest = function () { return true; };
+    let draftTimer = 0;
 
     v.edit.innerHTML = '<form novalidate>' +
       (proxy ? proxyBanner(opts.guest) : '<p class="lead">「自己紹介」と「クイズ」の音源をご提出ください。</p>') +
+      '<div class="restore-box"></div>' +
       '<div class="notice notice--err form-err" role="alert" hidden></div>' +
       (proxy ? '' : nameField(u, '')) +
       '<section class="card" data-f="audio"><h2 class="card__h">音源</h2>' +
@@ -278,7 +410,12 @@
     SLOTS.forEach(function (s) {
       zones[s.slot] = SV.dropzone($('[data-slot="' + s.slot + '"]', v.edit), {
         slot: s.slot, label: s.label + 'の音源', required: !proxy,
-        onChange: function () { if (zones[s.slot]) { zones[s.slot].setErr(''); syncSummary(v.edit); } },
+        onChange: function (f) {
+          if (!zones[s.slot]) return;
+          zones[s.slot].setErr('');
+          syncSummary(v.edit);
+          if (f) guard.dirty = true;
+        },
       });
     });
     SV._zones = SLOTS.map(function (s) { return zones[s.slot]; });
@@ -296,12 +433,41 @@
         box.innerHTML = '<p class="notice">すでにボイメをご提出いただいています。差し替えたい音源だけ選んで送れば、その音源が最新版になります（前回分も運営側で保管しています）。</p>';
       }
     }
-    const picker = guestPicker(v, u, Object.assign({}, opts, {
-      onGuest: function (g) { guest = g; showPrevious(); },
-    }), function () { return true; });
+    const picker = guestPicker(v, Object.assign({}, opts, {
+      onGuest: function (g) { guest = g; showPrevious(); saveDraftSoon(); },
+    }), anyGuest);
     showPrevious();
 
     gigaIn.addEventListener('input', function () { setFieldErr($('[data-f="giga"]', v.edit), ''); SLOTS.forEach(function (s) { if (gigaIn.value.trim()) zones[s.slot].setErr(''); }); syncSummary(v.edit); });
+
+    // --- drafts (name, URL and message; audio files have to be chosen again) ---
+    function saveDraftSoon() {
+      clearTimeout(draftTimer);
+      draftTimer = setTimeout(function () {
+        const g = picker.get(), giga = gigaIn.value.trim(), note = noteIn.value.trim();
+        const any = !!(g || giga || note);
+        guard.dirty = any || !!(zones.intro.file() || zones.quiz.file());
+        if (any) drafts.save({ guestId: g ? g.id : '', giga: giga, note: note }); else drafts.clear();
+      }, 300);
+    }
+    gigaIn.addEventListener('input', saveDraftSoon);
+    noteIn.addEventListener('input', saveDraftSoon);
+    const saved = drafts.load();
+    if (saved) {
+      gigaIn.value = saved.giga || '';
+      noteIn.value = saved.note || '';
+      const g = saved.guestId ? findGuest(opts, saved.guestId, anyGuest) : null;
+      if (g) picker.set(g);
+      guard.dirty = true;
+      const box = $('.restore-box', v.edit);
+      box.innerHTML = restoredNotice('前回入力途中だった内容（お名前・URL・備考）を復元しました。音源はもう一度選んでください。');
+      $('[data-act="discard"]', box).addEventListener('click', function () {
+        drafts.clear();
+        gigaIn.value = ''; noteIn.value = '';
+        picker.set(null);
+        box.innerHTML = '';
+      });
+    }
 
     function collect() {
       return {
@@ -339,8 +505,9 @@
       return !n;
     }
 
-    let data = null;
-    const uploaded = typeof WeakMap === 'function' ? new WeakMap() : new Map();
+    let data = null, sid = '', busy = false;
+    const mk = function () { return typeof WeakMap === 'function' ? new WeakMap() : new Map(); };
+    const uploaded = mk(), fileSid = mk();
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       data = collect();
@@ -367,7 +534,15 @@
       return '<div><dt>' + s.label + 'の音源</dt><dd class="drop">' + body + '</dd></div>';
     }
 
+    function asText(d) {
+      return '【SVARAC ボイメ】\nお名前：' + d.guest.name +
+        '\n自己紹介の音源：' + (d.files.intro ? d.files.intro.name : (d.giga ? 'ギガファイル便' : 'なし')) +
+        '\nクイズの音源：' + (d.files.quiz ? d.files.quiz.name : (d.giga ? 'ギガファイル便' : 'なし')) +
+        (d.giga ? '\nギガファイル便：' + d.giga : '') + (d.note ? '\n備考：' + d.note : '');
+    }
+
     function showConfirm() {
+      sid = SV.sid('v');
       v.confirm.innerHTML =
         '<p class="lead">以下の内容で送信します。音源は再生して確認できます。</p>' +
         '<section class="card"><dl class="dl"><div><dt>お名前</dt><dd>' + esc(data.guest.name) + '</dd></div></dl></section>' +
@@ -377,19 +552,21 @@
         '</dl></section>' +
         (data.giga ? '<p class="notice">ギガファイル便の保存期間が<strong>100日</strong>になっているか、もう一度ご確認ください。</p>' : '') +
         confirmActions();
-      const ui = sendingUI(v.confirm);
-      $('[data-act="edit"]', v.confirm).addEventListener('click', function () {
-        $$('audio', v.confirm).forEach(function (a) { a.pause(); });
-        v.show('edit');
+      const ui = sendingUI(v.confirm, {
+        hint: 'お手数ですが、音源をギガファイル便にアップして上の欄にURLを入れて送るか、下のボタンで入力内容をコピーして運営へDMでご相談ください。',
+        text: function () { return asText(data); },
       });
+      $('[data-act="edit"]', v.confirm).addEventListener('click', function () { v.show('edit'); });
       $('[data-act="send"]', v.confirm).addEventListener('click', function () {
-        $$('audio', v.confirm).forEach(function (a) { a.pause(); });
+        SV.stopAudio(v.confirm);
         send(ui);
       });
       v.show('confirm');
     }
 
     function send(ui) {
+      if (busy) return;
+      busy = true; guard.busy = true;
       const todo = SLOTS.filter(function (s) { return data.files[s.slot]; });
       const total = todo.length + 1;
       ui.start(todo.length ? todo[0].label + 'の音源を送信しています…（1/' + total + '）' : '送信しています…');
@@ -399,9 +576,12 @@
         chain = chain.then(function () {
           const f = data.files[s.slot];
           ui.step(s.label + 'の音源を送信しています…（' + (i + 1) + '/' + total + '）' + (f.size > 8 * 1024 * 1024 ? ' 大きいファイルは1分ほどかかります' : ''));
-          if (uploaded.has(f) && uploaded.get(f).guestId === data.guest.id) { ids[s.slot] = uploaded.get(f).fileId; return null; }
+          const prev = uploaded.has(f) ? uploaded.get(f) : null;
+          if (prev && prev.guestId === data.guest.id) { ids[s.slot] = prev.fileId; return null; }
+          if (!fileSid.has(f)) fileSid.set(f, SV.sid('u'));
           return SV.readBase64(f).then(function (b64) {
-            return SV.api('upload', { guestId: data.guest.id, slot: s.slot, fileName: f.name, mime: f.type || '', data: b64, pw: opts.pw }, { timeout: 330000 });
+            return SV.api('upload', { sid: fileSid.get(f), guestId: data.guest.id, slot: s.slot, fileName: f.name, mime: f.type || '', data: b64, pw: opts.pw },
+              { timeout: 330000, onRetry: ui.retrying });
           }).then(function (res) {
             uploaded.set(f, { guestId: data.guest.id, fileId: res.fileId });
             ids[s.slot] = res.fileId;
@@ -410,13 +590,20 @@
       });
       chain.then(function () {
         ui.step('仕上げています…（' + total + '/' + total + '）');
-        const body = { guestId: data.guest.id, giga: data.giga, note: data.note, pw: opts.pw };
+        const body = { sid: sid, guestId: data.guest.id, giga: data.giga, note: data.note, pw: opts.pw };
         SLOTS.forEach(function (s) { if (ids[s.slot]) body[s.slot] = { fileId: ids[s.slot], dur: zones[s.slot].duration() }; });
-        return SV.api('submitVoice', body);
+        return SV.api('submitVoice', body, { onRetry: ui.retrying });
       }).then(function () {
+        busy = false;
+        drafts.clear();
+        guard.release();
         if (opts.onSubmitted) opts.onSubmitted(data.guest, 'voice', { intro: !!ids.intro, quizAudio: !!ids.quiz, giga: !!data.giga });
         doneView(v, proxy ? '代理入力で保存しました。' : 'ありがとうございます！<br>不備がある場合はご連絡します。', opts);
-      }).catch(function (err) { ui.fail(err.message); });
+      }, function (err) {
+        busy = false; guard.busy = false;
+        const big = todo.some(function (s) { return data.files[s.slot].size > 15 * 1024 * 1024; });
+        ui.fail(err.message + (big && err.retryable ? '。大きいファイルは、ギガファイル便での提出もご検討ください' : ''));
+      });
     }
   };
 })();
