@@ -52,8 +52,11 @@
   SV.dur = function (sec) {
     sec = Number(sec);
     if (!isFinite(sec) || sec <= 0) return '';
-    const s = Math.round(sec);
+    const s = Math.floor(sec);
     return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  };
+  SV.stopAudio = function (root) {
+    SV.$$('audio', root || document).forEach(function (a) { try { a.pause(); } catch (e) { /* ignore */ } });
   };
   SV.ext = function (name) {
     const m = String(name || '').match(/\.([A-Za-z0-9]{1,5})$/);

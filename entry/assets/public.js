@@ -44,6 +44,7 @@
   }
 
   function route() {
+    SV.stopAudio();
     const kind = location.hash === '#quiz' ? 'quiz' : location.hash === '#voice' ? 'voice' : '';
     // a finished form starts fresh next time
     Object.keys(flows).forEach(function (k) { if (flows[k].finished && k !== kind) { delete flows[k]; boxes[k].innerHTML = ''; } });

@@ -49,6 +49,8 @@
     root.innerHTML = '<div class="v-edit"></div><div class="v-confirm" hidden></div><div class="v-done" hidden></div>';
     const v = { edit: $('.v-edit', root), confirm: $('.v-confirm', root), done: $('.v-done', root) };
     v.show = function (name) {
+      // a hidden screen keeps playing its audio, so stop every preview whenever the screen changes
+      SV.stopAudio(root);
       ['edit', 'confirm', 'done'].forEach(function (k) { v[k].hidden = k !== name; });
       window.scrollTo(0, 0);
     };
