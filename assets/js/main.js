@@ -30,8 +30,8 @@
       links: { x: sx, spoon: ss }, hashtag: 'スバラシー', defaultDurationMinutes: 90,
       episodes: [
         { no: 1, start: at21(-62), guests: [{ name: 'ゲストA' }, { name: 'ゲストB' }, { name: 'ゲストC' }, { name: 'ゲストD' }], preview: '（見本）記念すべき第1回。ゲスト4人を迎えて、大型企画をお届けしました。' },
-        { no: 2, start: at21(-31), guests: [{ name: 'ゲストE' }, { name: 'ゲストF' }, { name: 'ゲストG' }, { name: 'ゲストH' }, { name: 'ゲストI' }], preview: '（見本）トーク企画とクイズの二本立て。予想外の結末に、スタジオ（音声）は大混乱。' },
-        { no: 3, start: at21(3), guests: [{ name: 'ゲストJ', x: sx, spoon: ss }, { name: 'ゲストK', x: sx, spoon: ss }, { name: 'ゲストL', x: sx }, { name: 'ゲストM', spoon: ss }], preview: '（予告文の見本）今回はチーム対抗の大型企画。負けたチームには、ちょっとだけ毒のある罰ゲームが待っています。お楽しみに。' }
+        { no: 2, start: at21(-31), guests: [{ name: 'ゲストE' }, { name: 'ゲストF' }, { name: 'ゲストG' }, { name: 'ゲストH' }, { name: 'ゲストI' }], quizGuests: Array.from({ length: 12 }, (_, i) => `出題者${i + 1}`), preview: '（見本）トーク企画とクイズの二本立て。予想外の結末に、スタジオ（音声）は大混乱。' },
+        { no: 3, start: at21(3), guests: [{ name: 'ゲストJ', x: sx, spoon: ss }, { name: 'ゲストK', x: sx, spoon: ss }, { name: 'ゲストL', x: sx }, { name: 'ゲストM', spoon: ss }], quizGuests: Array.from({ length: 40 }, (_, i) => `クイズゲスト${i + 1}`), preview: '（予告文の見本）今回はチーム対抗の大型企画。負けたチームには、ちょっとだけ毒のある罰ゲームが待っています。お楽しみに。' }
       ],
       staff: [
         { name: 'MC名', role: 'MC', x: sx, spoon: ss }, { name: 'アシスタント名', role: 'アシスタント', x: sx, spoon: ss },
@@ -50,7 +50,7 @@
       const preview = String(e.preview || '');
       const n = [...preview.replace(/\n/g, '')].length;
       if (n > 100) console.warn(`第${e.no}回の予告文が100字を超えています（${n}字）`);
-      return { ...e, s, en, preview, guests: e.guests || [] };
+      return { ...e, s, en, preview, guests: e.guests || [], quizGuests: (e.quizGuests || []).map((q) => (typeof q === 'string' ? q : q && q.name)).filter(Boolean) };
     });
     return { ...d, eps, staff: d.staff || [], links: d.links || {} };
   }
@@ -128,13 +128,15 @@
               <span class="count__unit"><b class="gold" id="cd-s">00</b><span>秒</span></span></div></div>`}
       </div>`;
     // before the guests are announced, guestNote (e.g. 後日発表) stands in for the list
-    const guests = e.guests.length ? `<p class="next__label">ゲスト</p><ul class="guests">${e.guests.map((g) => `<li class="guest"><span class="guest__name">${esc(g.name)}</span>${linkBtns(g)}</li>`).join('')}</ul>`
+    const face = (g) => `<span class="guest__photo" aria-hidden="true">${g.photo ? `<img src="${esc(g.photo)}" alt="" loading="lazy">` : `<span class="gold">${esc([...String(g.name || '？')][0])}</span>`}</span>`;
+    const guests = e.guests.length ? `<p class="next__label">ゲスト</p><ul class="guests">${e.guests.map((g) => `<li class="guest"><span class="guest__who">${face(g)}<span class="guest__name">${esc(g.name)}</span></span>${linkBtns(g)}</li>`).join('')}</ul>`
       : e.guestNote ? `<p class="next__label">ゲスト</p><p class="guests__note">${esc(e.guestNote)}</p>` : '';
+    const quiz = e.quizGuests.length ? `<div class="quiz"><p class="next__label">クイズゲスト<span class="quiz__count">${e.quizGuests.length}名</span></p><ul class="quiz__list">${e.quizGuests.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>` : '';
     const btns = st.onair
       ? (listen ? `<div class="btns"><a class="btn btn--lg btn--red" href="${esc(listen)}" target="_blank" rel="noopener">Spoonで聴く</a></div>` : '')
       : `<div class="btns"><a class="btn btn--lg btn--red" href="${cal.google}" target="_blank" rel="noopener">Googleカレンダーに追加</a>
           <a class="btn btn--lg btn--line" href="${cal.ics}">iPhoneなどのカレンダーに追加</a></div>`;
-    box.innerHTML = left + `<div>${guests}${e.preview ? `<p class="next__preview">${prose(e.preview)}</p>` : ''}${btns}</div>`;
+    box.innerHTML = left + `<div>${guests}${quiz}${e.preview ? `<p class="next__preview">${prose(e.preview)}</p>` : ''}${btns}</div>`;
     tick();
   }
   // the arrow buttons only appear when there are more people than fit in the row
@@ -158,6 +160,7 @@
     $('archive-list').innerHTML = st.past.map((e) => `<li class="ep">
         <div class="ep__head"><p class="ep__no gold">#${pad(e.no || '')}</p><p class="ep__date">${ymd(e.s)}<small>（${dow(e.s)}）</small></p></div>
         ${e.guests.length ? `<p class="ep__guests">ゲスト：${e.guests.map((g, i, a) => `<span class="nw">${esc(g.name)}${i < a.length - 1 ? '、' : ''}</span>`).join('')}</p>` : ''}
+        ${e.quizGuests.length ? `<p class="ep__quiz">クイズゲスト：${e.quizGuests.map((n, i, a) => `<span class="nw">${esc(n)}${i < a.length - 1 ? '、' : ''}</span>`).join('')}</p>` : ''}
         ${e.preview ? `<p class="ep__preview">${prose(e.preview)}</p>` : ''}
       </li>`).join('');
   }
