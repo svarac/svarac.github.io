@@ -246,18 +246,18 @@
   };
 
   /* ---------- audio drop zone ----------
-     Drag & drop, tap to choose, or paste; previews the sound and reads its length right away. */
+     Drag & drop, tap to choose, or paste; previews the sound and reads its length right away.
+     Choosing or dropping several files at once hands the extras to opts.onExtra. */
   SV.dropzone = function (el, opts) {
     const id = 'f-' + opts.slot + '-' + Math.random().toString(36).slice(2, 7);
     el.classList.add('drop');
     el.innerHTML =
-      '<div class="drop__h">' + SV.esc(opts.label) + (opts.required ? ' <span class="tag tag--req">必須</span>' : '') + '</div>' +
-      '<div class="drop__prev" hidden></div>' +
+      '<div class="drop__h" hidden><span class="drop__no"></span><button type="button" class="linkbtn drop__rm" hidden>この欄を消す</button></div>' +
       '<div class="drop__pick">' +
-        '<input class="drop__input sr" type="file" id="' + id + '" accept="audio/*,.mp3,.wav,.m4a,.aac,.aif,.aiff,.flac,.ogg,.opus,.caf">' +
+        '<input class="drop__input sr" type="file" id="' + id + '"' + (opts.multiple ? ' multiple' : '') + ' accept="audio/*,.mp3,.wav,.m4a,.aac,.aif,.aiff,.flac,.ogg,.opus,.caf">' +
         '<label class="drop__zone" for="' + id + '">' + SV.icon.note +
           '<span class="drop__main">ここに音源をドラッグ＆ドロップ</span>' +
-          '<span class="drop__sub">またはタップしてファイルを選択<br>mp3・wav・m4a など／30MBまで</span>' +
+          '<span class="drop__sub">またはタップしてファイルを選択<br>mp3・wav・m4a など／1本30MBまで</span>' +
         '</label>' +
       '</div>' +
       '<div class="drop__file" hidden>' +
@@ -269,14 +269,19 @@
       '<p class="err" id="' + id + '-err"></p>';
     const input = SV.$('.drop__input', el), pickBox = SV.$('.drop__pick', el), fileBox = SV.$('.drop__file', el);
     const audio = SV.$('audio', el), nameEl = SV.$('.drop__name', el), infoEl = SV.$('.drop__info', el), nop = SV.$('.drop__nop', el);
-    const errEl = SV.$('.err', el), prev = SV.$('.drop__prev', el);
+    const errEl = SV.$('.err', el), head = SV.$('.drop__h', el), noEl = SV.$('.drop__no', el), rmBtn = SV.$('.drop__rm', el);
     let file = null, url = '', duration = 0;
 
     function setErr(msg) { errEl.textContent = msg || ''; el.classList.toggle('is-invalid', !!msg); }
     function info() { infoEl.textContent = [SV.bytes(file.size), SV.dur(duration)].filter(Boolean).join('・'); }
+    function check(f) {
+      if (!SV.isAudio(f)) return '音声ファイル（mp3・wav・m4a など）を選んでください';
+      if (f.size > SV.MAX_BYTES) return '30MBを超えるファイルは、下のギガファイル便の欄からご提出ください';
+      return '';
+    }
     function setFile(f) {
-      if (f && !SV.isAudio(f)) { setErr('音声ファイル（mp3・wav・m4a など）を選んでください'); return; }
-      if (f && f.size > SV.MAX_BYTES) { setErr('30MBを超えるファイルは、下のギガファイル便の欄からご提出ください'); return; }
+      if (f) { const bad = check(f); if (bad) { setErr(bad); return false; } }
+      SV.stopAudio(el);
       if (url) URL.revokeObjectURL(url);
       file = f || null; url = ''; duration = 0;
       setErr('');
@@ -293,26 +298,31 @@
         input.value = '';
       }
       if (opts.onChange) opts.onChange(file);
+      return true;
+    }
+    function take(list) {
+      list = Array.prototype.slice.call(list || []);
+      if (!list.length) return;
+      setFile(list[0]);
+      if (list.length > 1 && opts.onExtra) opts.onExtra(list.slice(1));
     }
     audio.addEventListener('loadedmetadata', function () { duration = isFinite(audio.duration) ? audio.duration : 0; if (file) info(); });
     audio.addEventListener('error', function () { if (file) nop.hidden = false; });
-    input.addEventListener('change', function () { if (input.files && input.files[0]) setFile(input.files[0]); });
+    input.addEventListener('change', function () { const fs = input.files; take(fs); });
     fileBox.addEventListener('click', function (e) {
       const b = e.target.closest('[data-act]');
       if (!b) return;
       if (b.getAttribute('data-act') === 'clear') setFile(null);
       else input.click();
     });
+    rmBtn.addEventListener('click', function () { if (opts.onRemove) opts.onRemove(); });
     ['dragenter', 'dragover'].forEach(function (t) {
       el.addEventListener(t, function (e) { e.preventDefault(); el.classList.add('is-over'); });
     });
     ['dragleave', 'drop'].forEach(function (t) {
       el.addEventListener(t, function (e) { e.preventDefault(); if (t === 'drop' || !el.contains(e.relatedTarget)) el.classList.remove('is-over'); });
     });
-    el.addEventListener('drop', function (e) {
-      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (f) setFile(f);
-    });
+    el.addEventListener('drop', function (e) { take(e.dataTransfer && e.dataTransfer.files); });
     el.addEventListener('pointerenter', function () { SV._pasteTarget = api; });
     el.addEventListener('focusin', function () { SV._pasteTarget = api; });
 
@@ -322,12 +332,96 @@
       file: function () { return file; },
       duration: function () { return duration; },
       url: function () { return url; },
+      check: check,
       setFile: setFile,
       setErr: setErr,
-      setPrevious: function (html) { prev.innerHTML = html || ''; prev.hidden = !html; },
+      /* "2本目" etc. Shown only when the list has more than one */
+      setNo: function (no, removable) {
+        head.hidden = !no;
+        noEl.textContent = no ? no + '本目' : '';
+        rmBtn.hidden = !removable;
+      },
     };
     return api;
   };
+
+  /* ---------- a list of audio drop zones with "＋ 追加する" ---------- */
+  SV.audioList = function (el, opts) {
+    const max = opts.max || 5;
+    el.classList.add('alist');
+    el.innerHTML =
+      '<div class="alist__h">' + SV.esc(opts.label) + (opts.required ? ' <span class="tag tag--req">必須</span>' : '') + '</div>' +
+      '<div class="alist__prev" hidden></div>' +
+      '<div class="alist__items"></div>' +
+      '<button type="button" class="btn btn--line btn--sm alist__add">＋ ' + SV.esc(opts.addLabel || '追加する') + '</button>' +
+      '<p class="hint alist__hint">複数ある場合は「＋追加する」で欄を増やせます（' + max + '本まで）。ファイルをまとめて選んでも入ります。</p>' +
+      '<p class="err alist__err"></p>';
+    const itemsEl = SV.$('.alist__items', el), addBtn = SV.$('.alist__add', el), errEl = SV.$('.alist__err', el), prev = SV.$('.alist__prev', el);
+    const zones = [];
+
+    function setErr(msg) { errEl.textContent = msg || ''; el.classList.toggle('is-invalid', !!msg); }
+    function sync() {
+      zones.forEach(function (z, i) { z.setNo(zones.length > 1 ? i + 1 : 0, zones.length > 1); });
+      addBtn.hidden = zones.length >= max;
+    }
+    function changed(f) {
+      setErr('');
+      if (opts.onChange) opts.onChange(f);
+    }
+    function add() {
+      if (zones.length >= max) return null;
+      const box = document.createElement('div');
+      itemsEl.appendChild(box);
+      const z = SV.dropzone(box, {
+        slot: opts.slot, multiple: true,
+        onExtra: function (files) { addMany(files); },
+        onRemove: function () { remove(z); },
+        onChange: changed,
+      });
+      zones.push(z);
+      sync();
+      return z;
+    }
+    function addMany(files) {
+      let skipped = 0;
+      files.forEach(function (f) {
+        if (!SV.isAudio(f)) { skipped++; return; }
+        const z = zones.filter(function (x) { return !x.file(); })[0] || add();
+        if (!z) { skipped++; return; }
+        if (!z.setFile(f)) skipped++;
+      });
+      if (skipped) SV.toast(skipped + '件は入れられませんでした（' + max + '本まで・音声ファイル・1本30MBまで）');
+    }
+    function remove(z) {
+      const i = zones.indexOf(z);
+      if (i < 0) return;
+      if (zones.length <= 1) { z.setFile(null); return; }
+      z.setFile(null);
+      zones.splice(i, 1);
+      z.el.remove();
+      sync();
+      changed(null);
+    }
+    addBtn.addEventListener('click', function () {
+      const z = add();
+      if (z) { const lab = SV.$('.drop__zone', z.el); if (lab) lab.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    });
+    add();
+
+    return {
+      el: el,
+      zones: function () { return zones.slice(); },
+      /* the zones that have a file, in order */
+      items: function () {
+        return zones.filter(function (z) { return z.file(); }).map(function (z) {
+          return { file: z.file(), dur: z.duration(), url: z.url() };
+        });
+      },
+      setErr: setErr,
+      setPrevious: function (html) { prev.innerHTML = html || ''; prev.hidden = !html; },
+    };
+  };
+
   /* ---------- safety net ----------
      If something in our own scripts breaks, say so plainly and offer a reload and a way to reach the team. */
   SV.crash = function () {
@@ -347,14 +441,15 @@
 
   // paste an audio file (copied in Finder/Explorer) into the zone under the pointer, else the first empty one
   document.addEventListener('paste', function (e) {
-    const zones = SV._zones || [];
+    const zones = typeof SV._zones === 'function' ? SV._zones() : (SV._zones || []);
     if (!zones.length) return;
     const f = e.clipboardData && e.clipboardData.files && e.clipboardData.files[0];
     if (!f || !SV.isAudio(f)) return;
     const visible = zones.filter(function (z) { return z.el.offsetParent !== null; });
     if (!visible.length) return;
     e.preventDefault();
-    const t = visible.indexOf(SV._pasteTarget) >= 0 ? SV._pasteTarget : visible.filter(function (z) { return !z.file(); })[0] || visible[0];
-    t.setFile(f);
+    const t = visible.indexOf(SV._pasteTarget) >= 0 ? SV._pasteTarget : visible.filter(function (z) { return !z.file(); })[0];
+    if (t) t.setFile(f);
+    else SV.toast('空いている欄がありません。「＋追加する」で欄を増やしてから貼り付けてください');
   });
 })();

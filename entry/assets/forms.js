@@ -6,10 +6,20 @@
 (function () {
   'use strict';
   const SV = window.SV;
-  const esc = SV.esc, $ = SV.$;
+  const esc = SV.esc, $ = SV.$, $$ = SV.$$;
   let uidN = 0;
   const KEYS = ['a', 'b', 'c', 'd'];
+  const DASH = 'ー';
+  // a choice that is not used in a 2- or 3-choice question
+  function isBlank(v) { return /^[ー\-－―‐—–−ｰ]+$/.test(String(v || '').trim()) || /^(なし|無し)$/.test(String(v || '').trim()); }
+  function optHtml(q, k) {
+    const K = k.toUpperCase(), on = q.ans === K, blank = isBlank(q[k]);
+    return '<li class="' + (on ? 'is-ans' : '') + (blank ? ' is-blank' : '') + '"><span class="k">' + K + '</span><span>' + (blank ? 'ー（使わない）' : esc(q[k])) + '</span>' + (on ? '<span class="mark">正解</span>' : '') + '</li>';
+  }
+  SV.isBlankChoice = isBlank;
+  SV.quizOptHtml = optHtml;
   const DRAFT_DAYS = 14;
+  const MAX_FILES = 5;
 
   function tag(req) { return req ? '<span class="tag tag--req">必須</span>' : '<span class="tag tag--opt">任意</span>'; }
 
@@ -183,7 +193,10 @@
         '<h2 class="card__h"><span class="no">Q' + n + '</span>第' + n + '問</h2>' +
         '<div class="field" data-f="text"><label for="' + p + '-text">クイズ内容 ' + tag(true) + '</label>' +
           '<textarea class="textarea" id="' + p + '-text" maxlength="2000" placeholder="問題文を入力してください"></textarea><p class="err"></p></div>' +
-        '<fieldset class="field" data-f="opts"><legend>選択肢 ' + tag(true) + '</legend><div class="choices">' +
+        '<fieldset class="field" data-f="opts"><legend>選択肢 ' + tag(true) + '</legend>' +
+          '<p class="hint choices__hint">2択・3択の場合は、使わない選択肢に「ー」を入力してください（例：A・Bの2択なら、CとDに「ー」）。' +
+            '<button type="button" class="linkbtn" data-act="dash">空いている欄を「ー」にする</button></p>' +
+          '<div class="choices">' +
           KEYS.map(function (k) {
             const K = k.toUpperCase();
             return '<div class="choice" data-k="' + k + '"><label class="choice__k" for="' + p + '-' + k + '">' + K + '</label>' +
@@ -200,7 +213,7 @@
     }
 
     v.edit.innerHTML = '<form novalidate>' +
-      (proxy ? proxyBanner(opts.guest) : '<p class="lead">クイズを2問ご提出ください。選択肢はA〜Dの4つ、正解を1つ選んでください。<br>入力した内容はこの端末に自動で保存されます。</p>') +
+      (proxy ? proxyBanner(opts.guest) : '<p class="lead">クイズを2問ご提出ください。選択肢はA〜D（2択・3択も可）、正解を1つ選んでください。<br>入力した内容はこの端末に自動で保存されます。</p>') +
       '<div class="restore-box"></div>' +
       '<div class="notice notice--err form-err" role="alert" hidden></div>' +
       (proxy ? '' : nameField(u, 'ボイメのみのご依頼の方は、クイズ案の提出は不要です。')) +
@@ -294,16 +307,38 @@
         setFieldErr($('[data-f="text"]', sec), q.text ? '' : 'クイズ内容を入力してください');
         if (!q.text) n++;
         const empty = KEYS.filter(function (k) { return !q[k]; });
+        const real = KEYS.filter(function (k) { return q[k] && !isBlank(q[k]); });
         KEYS.forEach(function (k) { $('[data-k="' + k + '"]', sec).classList.toggle('is-empty', !q[k]); });
-        setFieldErr($('[data-f="opts"]', sec), empty.length ? '選択肢' + empty.map(function (k) { return k.toUpperCase(); }).join('・') + 'を入力してください' : '');
-        if (empty.length) n++;
-        setFieldErr($('[data-f="ans"]', sec), q.ans ? '' : '正解をA〜Dから1つ選んでください');
-        if (!q.ans) n++;
+        const optErr = empty.length
+          ? '選択肢' + empty.map(function (k) { return k.toUpperCase(); }).join('・') + 'を入力してください（使わない選択肢には「ー」）'
+          : real.length < 2 ? '選択肢は2つ以上入力してください' : '';
+        setFieldErr($('[data-f="opts"]', sec), optErr);
+        if (optErr) n++;
+        const ansErr = !q.ans ? '正解をA〜Dから1つ選んでください'
+          : isBlank(q[q.ans.toLowerCase()]) ? '正解に「ー」（使わない選択肢）が選ばれています。正解の選択肢を選んでください' : '';
+        setFieldErr($('[data-f="ans"]', sec), ansErr);
+        if (ansErr) n++;
       });
       formErr.hidden = !n;
       formErr.textContent = n ? '入力が足りない項目が' + n + 'か所あります。赤い表示のところをご確認ください。' : '';
       return !n;
     }
+
+    form.addEventListener('click', function (e) {
+      const b = e.target.closest('[data-act="dash"]');
+      if (!b) return;
+      const f = b.closest('[data-f="opts"]');
+      let filled = 0;
+      KEYS.forEach(function (k) {
+        const inp = $('[data-k="' + k + '"] input', f);
+        if (!inp.value.trim()) { inp.value = DASH; filled++; }
+      });
+      if (!filled) { SV.toast('空いている選択肢はありません'); return; }
+      form.dispatchEvent(new Event('input', { bubbles: true }));
+      $$('.choice', f).forEach(function (ch) { if ($('input', ch).value.trim()) ch.classList.remove('is-empty'); });
+      if (!$('.choice.is-empty', f)) setFieldErr(f, '');
+      syncSummary(v.edit);
+    });
 
     // clear an error as soon as the field is fixed
     form.addEventListener('input', function (e) {
@@ -331,7 +366,7 @@
 
     function asText(d) {
       return '【SVARAC クイズ案】\nお名前：' + d.guest.name + '\n\n' + d.questions.map(function (q, i) {
-        return '■第' + (i + 1) + '問\n' + q.text + '\n' + KEYS.map(function (k) { return k.toUpperCase() + '. ' + q[k]; }).join('\n') + '\n正解：' + q.ans;
+        return '■第' + (i + 1) + '問\n' + q.text + '\n' + KEYS.filter(function (k) { return !isBlank(q[k]); }).map(function (k) { return k.toUpperCase() + '. ' + q[k]; }).join('\n') + '\n正解：' + q.ans;
       }).join('\n\n') + (d.note ? '\n\n備考：' + d.note : '');
     }
 
@@ -343,10 +378,7 @@
         data.questions.map(function (q, i) {
           return '<section class="card"><h2 class="card__h"><span class="no">Q' + (i + 1) + '</span>第' + (i + 1) + '問</h2><dl class="dl">' +
             '<div><dt>クイズ内容</dt><dd>' + esc(q.text) + '</dd></div>' +
-            '<div><dt>選択肢と正解</dt><dd><ul class="opts">' + KEYS.map(function (k) {
-              const K = k.toUpperCase(), on = q.ans === K;
-              return '<li class="' + (on ? 'is-ans' : '') + '"><span class="k">' + K + '</span><span>' + esc(q[k]) + '</span>' + (on ? '<span class="mark">正解</span>' : '') + '</li>';
-            }).join('') + '</ul></dd></div>' +
+            '<div><dt>選択肢と正解</dt><dd><ul class="opts">' + KEYS.map(function (k) { return optHtml(q, k); }).join('') + '</ul></dd></div>' +
           '</dl></section>';
         }).join('') +
         '<section class="card"><dl class="dl"><div><dt>備考・メッセージ</dt><dd>' + (data.note ? esc(data.note) : '<span class="empty">なし</span>') + '</dd></div></dl></section>' +
@@ -406,25 +438,23 @@
     '</form>';
     const form = $('form', v.edit), formErr = $('.form-err', v.edit), gigaIn = $('#' + u + '-giga'), noteIn = $('#' + u + '-note');
     const SLOTS = [{ slot: 'intro', label: '自己紹介', doneKey: 'intro' }, { slot: 'quiz', label: 'クイズ', doneKey: 'quizAudio' }];
-    const zones = {};
+    const lists = {};
     SLOTS.forEach(function (s) {
-      zones[s.slot] = SV.dropzone($('[data-slot="' + s.slot + '"]', v.edit), {
-        slot: s.slot, label: s.label + 'の音源', required: !proxy,
+      lists[s.slot] = SV.audioList($('[data-slot="' + s.slot + '"]', v.edit), {
+        slot: s.slot, label: s.label + 'の音源', addLabel: s.label + 'の音源を追加する', required: !proxy, max: MAX_FILES,
         onChange: function (f) {
-          if (!zones[s.slot]) return;
-          zones[s.slot].setErr('');
           syncSummary(v.edit);
           if (f) guard.dirty = true;
         },
       });
     });
-    SV._zones = SLOTS.map(function (s) { return zones[s.slot]; });
+    SV._zones = function () { return lists.intro.zones().concat(lists.quiz.zones()); };
 
     let guest = opts.guest || null;
     function showPrevious() {
       SLOTS.forEach(function (s) {
         const has = guest && guest.done && guest.done[s.doneKey];
-        zones[s.slot].setPrevious(has ? '<p class="notice">提出済みの音源があります。差し替える場合だけ選んでください。</p>' : '');
+        lists[s.slot].setPrevious(has ? '<p class="notice">提出済みの音源があります。差し替える場合だけ選んでください（選んだ音源で、前回分がまるごと差し替わります）。</p>' : '');
       });
       const box = $('.resub', v.edit);
       if (box) {
@@ -438,7 +468,7 @@
     }), anyGuest);
     showPrevious();
 
-    gigaIn.addEventListener('input', function () { setFieldErr($('[data-f="giga"]', v.edit), ''); SLOTS.forEach(function (s) { if (gigaIn.value.trim()) zones[s.slot].setErr(''); }); syncSummary(v.edit); });
+    gigaIn.addEventListener('input', function () { setFieldErr($('[data-f="giga"]', v.edit), ''); SLOTS.forEach(function (s) { if (gigaIn.value.trim()) lists[s.slot].setErr(''); }); syncSummary(v.edit); });
 
     // --- drafts (name, URL and message; audio files have to be chosen again) ---
     function saveDraftSoon() {
@@ -446,7 +476,7 @@
       draftTimer = setTimeout(function () {
         const g = picker.get(), giga = gigaIn.value.trim(), note = noteIn.value.trim();
         const any = !!(g || giga || note);
-        guard.dirty = any || !!(zones.intro.file() || zones.quiz.file());
+        guard.dirty = any || !!(lists.intro.items().length || lists.quiz.items().length);
         if (any) drafts.save({ guestId: g ? g.id : '', giga: giga, note: note }); else drafts.clear();
       }, 300);
     }
@@ -472,7 +502,7 @@
     function collect() {
       return {
         guest: picker.get(),
-        files: { intro: zones.intro.file(), quiz: zones.quiz.file() },
+        files: { intro: lists.intro.items(), quiz: lists.quiz.items() },
         giga: gigaIn.value.trim(),
         note: noteIn.value.trim(),
       };
@@ -489,14 +519,14 @@
       const done = (d.guest && d.guest.done) || {};
       const hasGiga = !!d.giga || !!done.giga;
       if (proxy) {
-        if (!d.files.intro && !d.files.quiz && !d.giga && !d.note) {
-          zones.intro.setErr('音源・ギガファイル便のURL・備考のどれかを入れてください');
+        if (!d.files.intro.length && !d.files.quiz.length && !d.giga && !d.note) {
+          lists.intro.setErr('音源・ギガファイル便のURL・備考のどれかを入れてください');
           n++;
         }
       } else {
         SLOTS.forEach(function (s) {
-          const ok = d.files[s.slot] || done[s.doneKey] || hasGiga;
-          zones[s.slot].setErr(ok ? '' : s.label + 'の音源を選んでください（ギガファイル便で提出する場合は、下の欄にURLを入れてください）');
+          const ok = d.files[s.slot].length || done[s.doneKey] || hasGiga;
+          lists[s.slot].setErr(ok ? '' : s.label + 'の音源を選んでください（ギガファイル便で提出する場合は、下の欄にURLを入れてください）');
           if (!ok) n++;
         });
       }
@@ -516,12 +546,15 @@
     });
 
     function audioRow(s) {
-      const f = data.files[s.slot], z = zones[s.slot];
+      const list = data.files[s.slot];
       const done = (data.guest && data.guest.done) || {};
       let body;
-      if (f) {
-        body = '<div class="drop__meta"><span class="drop__name">' + esc(f.name) + '</span><span class="drop__info">' + esc([SV.bytes(f.size), SV.dur(z.duration())].filter(Boolean).join('・')) + '</span></div>' +
-          '<audio controls preload="metadata" src="' + esc(z.url()) + '"></audio>';
+      if (list.length) {
+        body = list.map(function (it, i) {
+          return '<div class="confirm-audio">' + (list.length > 1 ? '<div class="drop__h">' + (i + 1) + '本目</div>' : '') +
+            '<div class="drop__meta"><span class="drop__name">' + esc(it.file.name) + '</span><span class="drop__info">' + esc([SV.bytes(it.file.size), SV.dur(it.dur)].filter(Boolean).join('・')) + '</span></div>' +
+            '<audio controls preload="metadata" src="' + esc(it.url) + '"></audio></div>';
+        }).join('');
       } else if (data.giga) {
         body = 'ギガファイル便で提出';
       } else if (done[s.doneKey]) {
@@ -531,13 +564,13 @@
       } else {
         body = '<span class="empty">なし</span>';
       }
-      return '<div><dt>' + s.label + 'の音源</dt><dd class="drop">' + body + '</dd></div>';
+      return '<div><dt>' + s.label + 'の音源' + (list.length > 1 ? '（' + list.length + '本）' : '') + '</dt><dd class="drop">' + body + '</dd></div>';
     }
 
     function asText(d) {
       return '【SVARAC ボイメ】\nお名前：' + d.guest.name +
-        '\n自己紹介の音源：' + (d.files.intro ? d.files.intro.name : (d.giga ? 'ギガファイル便' : 'なし')) +
-        '\nクイズの音源：' + (d.files.quiz ? d.files.quiz.name : (d.giga ? 'ギガファイル便' : 'なし')) +
+        '\n自己紹介の音源：' + (d.files.intro.length ? d.files.intro.map(function (it) { return it.file.name; }).join('、') : (d.giga ? 'ギガファイル便' : 'なし')) +
+        '\nクイズの音源：' + (d.files.quiz.length ? d.files.quiz.map(function (it) { return it.file.name; }).join('、') : (d.giga ? 'ギガファイル便' : 'なし')) +
         (d.giga ? '\nギガファイル便：' + d.giga : '') + (d.note ? '\n備考：' + d.note : '');
     }
 
@@ -567,41 +600,45 @@
     function send(ui) {
       if (busy) return;
       busy = true; guard.busy = true;
-      const todo = SLOTS.filter(function (s) { return data.files[s.slot]; });
+      const todo = [];
+      SLOTS.forEach(function (s) {
+        const list = data.files[s.slot];
+        list.forEach(function (it, i) { todo.push({ s: s, it: it, label: s.label + 'の音源' + (list.length > 1 ? '（' + (i + 1) + '本目）' : '') }); });
+      });
       const total = todo.length + 1;
-      ui.start(todo.length ? todo[0].label + 'の音源を送信しています…（1/' + total + '）' : '送信しています…');
-      const ids = {};
+      ui.start(todo.length ? todo[0].label + 'を送信しています…（1/' + total + '）' : '送信しています…');
+      const ids = { intro: [], quiz: [] };
       let chain = Promise.resolve();
-      todo.forEach(function (s, i) {
+      todo.forEach(function (t, i) {
         chain = chain.then(function () {
-          const f = data.files[s.slot];
-          ui.step(s.label + 'の音源を送信しています…（' + (i + 1) + '/' + total + '）' + (f.size > 8 * 1024 * 1024 ? ' 大きいファイルは1分ほどかかります' : ''));
+          const f = t.it.file;
+          ui.step(t.label + 'を送信しています…（' + (i + 1) + '/' + total + '）' + (f.size > 8 * 1024 * 1024 ? ' 大きいファイルは1分ほどかかります' : ''));
           const prev = uploaded.has(f) ? uploaded.get(f) : null;
-          if (prev && prev.guestId === data.guest.id) { ids[s.slot] = prev.fileId; return null; }
+          if (prev && prev.guestId === data.guest.id) { ids[t.s.slot].push({ fileId: prev.fileId, dur: t.it.dur }); return null; }
           if (!fileSid.has(f)) fileSid.set(f, SV.sid('u'));
           return SV.readBase64(f).then(function (b64) {
-            return SV.api('upload', { sid: fileSid.get(f), guestId: data.guest.id, slot: s.slot, fileName: f.name, mime: f.type || '', data: b64, pw: opts.pw },
+            return SV.api('upload', { sid: fileSid.get(f), guestId: data.guest.id, slot: t.s.slot, fileName: f.name, mime: f.type || '', data: b64, pw: opts.pw },
               { timeout: 330000, onRetry: ui.retrying });
           }).then(function (res) {
             uploaded.set(f, { guestId: data.guest.id, fileId: res.fileId });
-            ids[s.slot] = res.fileId;
+            ids[t.s.slot].push({ fileId: res.fileId, dur: t.it.dur });
           });
         });
       });
       chain.then(function () {
         ui.step('仕上げています…（' + total + '/' + total + '）');
         const body = { sid: sid, guestId: data.guest.id, giga: data.giga, note: data.note, pw: opts.pw };
-        SLOTS.forEach(function (s) { if (ids[s.slot]) body[s.slot] = { fileId: ids[s.slot], dur: zones[s.slot].duration() }; });
+        SLOTS.forEach(function (s) { if (ids[s.slot].length) body[s.slot] = ids[s.slot]; });
         return SV.api('submitVoice', body, { onRetry: ui.retrying });
       }).then(function () {
         busy = false;
         drafts.clear();
         guard.release();
-        if (opts.onSubmitted) opts.onSubmitted(data.guest, 'voice', { intro: !!ids.intro, quizAudio: !!ids.quiz, giga: !!data.giga });
+        if (opts.onSubmitted) opts.onSubmitted(data.guest, 'voice', { intro: !!ids.intro.length, quizAudio: !!ids.quiz.length, giga: !!data.giga });
         doneView(v, proxy ? '代理入力で保存しました。' : 'ありがとうございます！<br>不備がある場合はご連絡します。', opts);
       }, function (err) {
         busy = false; guard.busy = false;
-        const big = todo.some(function (s) { return data.files[s.slot].size > 15 * 1024 * 1024; });
+        const big = todo.some(function (t) { return t.it.file.size > 15 * 1024 * 1024; });
         ui.fail(err.message + (big && err.retryable ? '。大きいファイルは、ギガファイル便での提出もご検討ください' : ''));
       });
     }

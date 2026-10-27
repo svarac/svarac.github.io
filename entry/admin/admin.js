@@ -57,8 +57,15 @@
     }
     return blobs[fileId];
   }
-  function dlName(g, label, fileName) {
-    return SV.safeName(g.name) + '_' + label + (SV.ext(fileName) ? '.' + SV.ext(fileName) : '');
+  /* 名前_自己紹介.wav / 名前_クイズ1.wav, 名前_クイズ2.wav … (numbered only when there are several) */
+  function dlName(g, label, fileName, no, count) {
+    return SV.safeName(g.name) + '_' + label + (count > 1 ? no : '') + (SV.ext(fileName) ? '.' + SV.ext(fileName) : '');
+  }
+  function slotFiles(g, label, sl) {
+    const files = (sl && sl.files) || [];
+    return files.map(function (f, i) {
+      return { id: f.id, name: f.name, size: f.size, dur: f.dur, label: label + (files.length > 1 ? (i + 1) : ''), dl: dlName(g, label, f.name, i + 1, files.length) };
+    });
   }
 
   /* ---------- shell ---------- */
@@ -122,8 +129,9 @@
       return '<span class="pc ' + cls + '">' + mark + ' ' + label + '</span>';
     };
     if (g.type !== 'B' || s.quizAt) out.push(chip('クイズ案', s.quizAt ? 'ok' : 'no'));
-    out.push(chip('自己紹介', s.intro ? 'ok' : s.giga ? 'giga' : 'no'));
-    out.push(chip('クイズ音源', s.quizAudio ? 'ok' : s.giga ? 'giga' : 'no'));
+    const n = function (sl) { return sl && sl.files && sl.files.length > 1 ? ' ×' + sl.files.length : ''; };
+    out.push(chip('自己紹介' + n(s.intro), s.intro ? 'ok' : s.giga ? 'giga' : 'no'));
+    out.push(chip('クイズ音源' + n(s.quizAudio), s.quizAudio ? 'ok' : s.giga ? 'giga' : 'no'));
     return out.join('');
   }
   function matches(g) {
@@ -214,33 +222,37 @@
       return '<div class="qv"><div class="qv__h"><span class="no">Q' + n + '</span>第' + n + '問</div>' +
         '<p class="qv__text">' + esc(r[p]) + '</p>' +
         '<ul class="opts">' + KEYS.map(function (k) {
-          const K = k.toUpperCase(), on = ans === K;
-          return '<li class="' + (on ? 'is-ans' : '') + '"><span class="k">' + K + '</span><span>' + esc(r[p + k]) + '</span>' + (on ? '<span class="mark">正解</span>' : '') + '</li>';
+          const q = { ans: ans };
+          KEYS.forEach(function (x) { q[x] = r[p + x]; });
+          return SV.quizOptHtml(q, k);
         }).join('') + '</ul></div>';
     }).join('') + (r.note ? '<div class="qnote"><b>備考・メッセージ</b>' + esc(r.note) + '</div>' : '');
   }
   function quizText(g, r) {
     return g.name + '\n' + [1, 2].map(function (n) {
       const p = 'q' + n;
-      return '【第' + n + '問】' + r[p] + '\n' + KEYS.map(function (k) { return k.toUpperCase() + '. ' + r[p + k]; }).join('\n') + '\n正解：' + r[p + 'ans'];
+      return '【第' + n + '問】' + r[p] + '\n' + KEYS.filter(function (k) { return !SV.isBlankChoice(r[p + k]); }).map(function (k) { return k.toUpperCase() + '. ' + r[p + k]; }).join('\n') + '\n正解：' + r[p + 'ans'];
     }).join('\n\n') + (r.note ? '\n\n備考：' + r.note : '');
   }
-  function audioRow(g, label, f) {
-    if (!f) return '<div class="arow arow--none"><span class="arow__h">' + label + '</span><span class="empty">未提出</span></div>';
-    return '<div class="arow" data-file="' + esc(f.id) + '" data-name="' + esc(dlName(g, label, f.name)) + '">' +
-      '<div class="arow__top"><span class="arow__h">' + label + '</span><span class="arow__info">' + esc([SV.dur(f.dur), SV.bytes(f.size), '提出 ' + shortAt(f.at)].filter(Boolean).join('・')) + '</span></div>' +
-      '<div class="arow__file">' + esc(f.name) + (f.by === '管理者' ? '（代理入力）' : '') + '</div>' +
-      '<div class="arow__player"></div>' +
-      '<div class="arow__btns"><button type="button" class="btn btn--line btn--sm" data-act="play">▶ 試聴</button>' +
-        '<button type="button" class="btn btn--line btn--sm" data-act="dl">DL（' + esc(dlName(g, label, f.name)) + '）</button>' +
-        '<a class="btn btn--ghost btn--sm" href="https://drive.google.com/file/d/' + encodeURIComponent(f.id) + '/view" target="_blank" rel="noopener">ドライブで開く</a></div>' +
-    '</div>';
+  function audioSlot(g, label, sl) {
+    if (!sl) return '<div class="arow arow--none"><span class="arow__h">' + label + '</span><span class="empty">未提出</span></div>';
+    return slotFiles(g, label, sl).map(function (f) {
+      return '<div class="arow" data-file="' + esc(f.id) + '" data-name="' + esc(f.dl) + '">' +
+        '<div class="arow__top"><span class="arow__h">' + esc(f.label) + '</span><span class="arow__info">' + esc([SV.dur(f.dur), SV.bytes(f.size), '提出 ' + shortAt(sl.at)].filter(Boolean).join('・')) + '</span></div>' +
+        '<div class="arow__file">' + esc(f.name) + (sl.by === '管理者' ? '（代理入力）' : '') + '</div>' +
+        '<div class="arow__player"></div>' +
+        '<div class="arow__btns"><button type="button" class="btn btn--line btn--sm" data-act="play">▶ 試聴</button>' +
+          '<button type="button" class="btn btn--line btn--sm" data-act="dl">DL（' + esc(f.dl) + '）</button>' +
+          '<a class="btn btn--ghost btn--sm" href="https://drive.google.com/file/d/' + encodeURIComponent(f.id) + '/view" target="_blank" rel="noopener">ドライブで開く</a></div>' +
+      '</div>';
+    }).join('');
   }
-  function histFile(label, id, name) {
-    if (!id) return '';
-    return '<div class="arow" data-file="' + esc(id) + '" data-name="' + esc(name) + '"><div class="arow__top"><span class="arow__h">' + label + '</span></div>' +
-      '<div class="arow__file">' + esc(name) + '</div><div class="arow__player"></div>' +
-      '<div class="arow__btns"><button type="button" class="btn btn--line btn--sm" data-act="play">▶ 試聴</button><button type="button" class="btn btn--line btn--sm" data-act="dl">DL</button></div></div>';
+  function histFiles(g, label, files) {
+    return slotFiles(g, label, { files: files || [] }).map(function (f) {
+      return '<div class="arow" data-file="' + esc(f.id) + '" data-name="' + esc(f.dl) + '"><div class="arow__top"><span class="arow__h">' + esc(f.label) + '</span></div>' +
+        '<div class="arow__file">' + esc(f.name) + '</div><div class="arow__player"></div>' +
+        '<div class="arow__btns"><button type="button" class="btn btn--line btn--sm" data-act="play">▶ 試聴</button><button type="button" class="btn btn--line btn--sm" data-act="dl">DL</button></div></div>';
+    }).join('');
   }
 
   function renderDetail(id) {
@@ -280,7 +292,7 @@
 
       '<section class="card" id="voice-card"><div class="card__top"><h2 class="card__h">ボイメ</h2>' +
         '<a class="btn btn--line btn--sm" href="#proxy-voice/' + esc(g.id) + '">代理入力</a></div>' +
-        audioRow(g, '自己紹介', s.intro) + audioRow(g, 'クイズ', s.quizAudio) +
+        audioSlot(g, '自己紹介', s.intro) + audioSlot(g, 'クイズ', s.quizAudio) +
         (s.giga ? '<div class="arow arow--giga"><div class="arow__top"><span class="arow__h">ギガファイル便</span><span class="arow__info">提出 ' + esc(shortAt(s.giga.at)) + '</span></div>' +
           '<p style="margin-top:6px"><a href="' + esc(s.giga.url) + '" target="_blank" rel="noopener">' + esc(s.giga.url) + '</a></p>' +
           '<p class="hint">ZIPには入りません。DLした音源を「代理入力」から入れると、ZIPに含められます。</p></div>' : '') +
@@ -354,16 +366,26 @@
     $('#zip').addEventListener('click', function () {
       const btn = this;
       if (!window.JSZip) { SV.toast('ZIPの部品を読み込めませんでした。ページを再読み込みしてください'); return; }
-      const parts = [['自己紹介', s.intro], ['クイズ', s.quizAudio]].filter(function (p) { return p[1]; });
+      const parts = slotFiles(g, '自己紹介', s.intro).concat(slotFiles(g, 'クイズ', s.quizAudio));
       const label = btn.innerHTML;
-      btn.disabled = true; btn.innerHTML = '<span class="spin"></span>ZIPを作っています…';
-      Promise.all(parts.map(function (p) { return getBlob(p[1].id); })).then(function (list) {
+      btn.disabled = true; btn.innerHTML = '<span class="spin"></span>ZIPを作っています…（0/' + parts.length + '）';
+      let got = 0;
+      // one file at a time, so a big set doesn't hit Google with many large downloads at once
+      parts.reduce(function (chain, f) {
+        return chain.then(function (blobs) {
+          return getBlob(f.id).then(function (b) {
+            got++;
+            btn.innerHTML = '<span class="spin"></span>ZIPを作っています…（' + got + '/' + parts.length + '）';
+            return blobs.concat([b]);
+          });
+        });
+      }, Promise.resolve([])).then(function (list) {
         const zip = new window.JSZip();
-        list.forEach(function (blob, i) { zip.file(dlName(g, parts[i][0], parts[i][1].name), blob); });
+        list.forEach(function (blob, i) { zip.file(parts[i].dl, blob); });
         return zip.generateAsync({ type: 'blob', compression: 'STORE' });
       }).then(function (z) {
         save(z, zipName);
-        if (parts.length < 2) SV.toast('揃っている音源だけでZIPにしました');
+        if (!s.intro || !s.quizAudio) SV.toast('揃っている音源だけでZIPにしました');
       }, function (err) { SV.toast(err.message); }).finally(function () { btn.disabled = false; btn.innerHTML = label; });
     });
 
@@ -387,7 +409,7 @@
         $('#voice-hist').innerHTML = vs.length
           ? '<details class="hist"><summary>ボイメの提出履歴（' + vs.length + '件）</summary>' + vs.map(function (r) {
             return '<div class="hist__item"><p class="meta">提出 ' + esc(r.at) + '（' + esc(r.by) + '）</p>' +
-              histFile('自己紹介', r.introId, r.introName) + histFile('クイズ', r.quizId, r.quizName) +
+              histFiles(g, '自己紹介', r.files && r.files.intro) + histFiles(g, 'クイズ', r.files && r.files.quiz) +
               (r.giga ? '<p style="margin-top:8px">ギガファイル便：<a href="' + esc(r.giga) + '" target="_blank" rel="noopener">' + esc(r.giga) + '</a></p>' : '') +
               (r.note ? '<div class="qnote"><b>備考・メッセージ</b>' + esc(r.note) + '</div>' : '') + '</div>';
           }).join('') + '</details>'
