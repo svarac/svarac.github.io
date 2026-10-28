@@ -143,14 +143,18 @@
   function syncStaffTools() {
     const vp = $('staff-viewport');
     $('staff').classList.toggle('is-scrollable', vp.scrollWidth > vp.clientWidth + 2);
+    $('staff').classList.toggle('at-end', vp.scrollLeft + vp.clientWidth >= vp.scrollWidth - 4);
   }
   window.addEventListener('resize', () => requestAnimationFrame(syncStaffTools));
+  $('staff-viewport').addEventListener('scroll', () => requestAnimationFrame(syncStaffTools), { passive: true });
+  // "Maya（まい）": the reading in brackets is set smaller so the name stays on one line
+  const personName = (n) => { const m = String(n || '').match(/^(.+?)\s*([（(][^（()）]+[）)])$/); return m ? `${esc(m[1])}<small class="member__kana">${esc(m[2])}</small>` : esc(n); };
   function renderStaff() {
     $('staff').hidden = DATA.staff.length === 0;
     requestAnimationFrame(syncStaffTools);
     $('staff-list').innerHTML = DATA.staff.map((m) => `<li class="member">
         <div class="member__photo">${m.photo ? `<img src="${esc(m.photo)}" alt="" loading="lazy">` : `<span class="gold" aria-hidden="true">${esc([...String(m.name || '？')][0])}</span>`}</div>
-        <h3 class="member__name">${esc(m.name)}</h3>
+        <h3 class="member__name">${personName(m.name)}</h3>
         <p class="member__role">${esc(m.role || '')}</p>
         ${linkBtns(m)}
       </li>`).join('');
