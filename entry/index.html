@@ -11,41 +11,41 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/entry.css?v=10">
+<link rel="stylesheet" href="assets/entry.css?v=12">
 </head>
 <body>
 
-<!-- top -->
+<!-- top: choose your name first -->
 <main class="top" id="v-top">
   <h1 class="top__logo"><img src="assets/img/logo_full.svg" alt="SVARAC スバラシー！" width="1309" height="507"></h1>
   <div>
     <p class="top__eyebrow">出演者さま 提出ページ</p>
     <p class="top__thanks">ご協力くださり<br>ありがとうございます</p>
   </div>
-  <div class="top__btns">
-    <a class="big big--red" href="#quiz">
-      <span class="big__txt"><span class="big__title">クイズ案提出</span><span class="big__sub">2問・選択式（2〜4択）</span></span>
-      <span class="big__arrow"></span>
-    </a>
-    <a class="big big--gold" href="#voice">
-      <span class="big__txt"><span class="big__title">ボイメ提出</span><span class="big__sub">自己紹介・クイズの音源／CMの音源</span></span>
-      <span class="big__arrow"></span>
-    </a>
-  </div>
-  <p class="top__note" id="top-note">ボイメのみ・CMのみのご依頼の方は、「ボイメ提出」だけで大丈夫です。</p>
+  <form class="who" id="who" novalidate>
+    <div class="field">
+      <label for="who-name">お名前を選んでください</label>
+      <div class="combo"><input class="input" id="who-name" placeholder="読みの1文字目を入力（例：や）" aria-describedby="who-hint" disabled><span class="combo__ok">選択済み</span></div>
+      <p class="hint" id="who-hint">読みの1文字目を入れると候補が出ます。候補に出てこない場合は、お手数ですが運営までご連絡ください。</p>
+      <p class="err" id="who-err"></p>
+    </div>
+    <button class="btn btn--red btn--lg btn--block who__go" type="submit" disabled>進む<span class="who__arrow"></span></button>
+    <div id="who-state"></div>
+  </form>
 </main>
 
-<!-- forms -->
+<!-- after the name: menu (クイズ案＋ボイメ) or a form -->
 <div id="v-form" hidden>
   <header class="bar">
-    <a class="bar__back" href="#top"><span class="bar__icon"></span>トップ</a>
+    <a class="bar__back" id="bar-back" href="#"><span class="bar__icon"></span><span id="bar-back-label">トップ</span></a>
     <h1 class="bar__title" id="form-title"></h1>
     <img class="bar__logo" src="assets/img/logo_svarac_mono-white.svg" alt="SVARAC" width="72" height="22">
   </header>
   <div class="wrap page">
+    <div id="form-state"></div>
+    <div id="menu" hidden></div>
     <div id="form-quiz" hidden></div>
     <div id="form-voice" hidden></div>
-    <div id="form-state"></div>
   </div>
 </div>
 
@@ -66,9 +66,9 @@
     }, 300);
   });
 </script>
-<script src="config.js?v=10"></script>
-<script src="assets/common.js?v=10"></script>
-<script src="assets/forms.js?v=10"></script>
-<script src="assets/public.js?v=10"></script>
+<script src="config.js?v=12"></script>
+<script src="assets/common.js?v=12"></script>
+<script src="assets/forms.js?v=12"></script>
+<script src="assets/public.js?v=12"></script>
 </body>
 </html>

@@ -230,6 +230,7 @@
     });
     input.addEventListener('blur', function () {
       setTimeout(function () {
+        if (document.activeElement === input) return;   // focused again meanwhile (e.g. came back to this screen)
         close();
         if (!picked) {
           const exact = opts.items().filter(function (g) { return g.name === input.value.trim(); })[0];

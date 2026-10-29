@@ -704,7 +704,7 @@
       '<p class="lead">DMなど別の方法で受け取った内容をここから入れます。ゲストが提出したときと同じように保存され、履歴にも残ります。</p><div id="proxy"></div>');
     const box = $('#proxy');
     const opts = {
-      guest: asFlowGuest(g), pw: pw,
+      guest: asFlowGuest(g), pw: pw, proxy: true,
       onDone: function () { delete details[id]; D = null; location.hash = '#g/' + id; },
     };
     if (kind === 'quiz') {
