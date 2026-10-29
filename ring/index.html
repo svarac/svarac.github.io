@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>アイコンリング｜SVARAC（スバラシー）</title>
+<meta name="description" content="あなたのアイコンに、SVARAC（スバラシー）のアイコンリングを。画像を選んで位置を合わせるだけで、リング付きのアイコンが作れます。">
+<meta name="theme-color" content="#141414">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SVARAC（スバラシー）">
+<meta property="og:title" content="SVARAC アイコンリング｜くだらなくて、スバラシー。">
+<meta property="og:description" content="画像を選んで位置を合わせるだけ。あなたのアイコンに、SVARACのリングを。">
+<meta property="og:url" content="https://svarac.github.io/ring/">
+<meta property="og:image" content="https://svarac.github.io/ring/img/ogp_ring.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://svarac.github.io/ring/">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Dela+Gothic+One&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ring.css?v=1">
+</head>
+<body>
+
+<header class="head">
+  <a class="head__logo" href="../"><img src="../assets/img/logo_full.svg" alt="SVARAC スバラシー！ トップへ" width="1309" height="507"></a>
+  <h1 class="head__title">アイコンリング</h1>
+  <p class="head__lead"><span class="nw">あなたのアイコンに、</span><span class="nw">SVARACのリングを。</span></p>
+</header>
+
+<main class="main" id="app">
+
+  <!-- 1. choose -->
+  <section class="step" aria-labelledby="s1-h">
+    <h2 class="step__h" id="s1-h"><span class="step__no">1</span>アイコン画像を選ぶ</h2>
+    <label class="btn btn--lg btn--red pick" id="pick-label">
+      <input type="file" id="file" accept="image/*" class="sr">
+      <span id="pick-text">画像を選ぶ</span>
+    </label>
+    <p class="note">画像はこの端末の中だけで加工され、どこにも送信・保存されません。</p>
+    <p class="err" id="err" role="alert" hidden></p>
+  </section>
+
+  <!-- 2. adjust -->
+  <section class="step" aria-labelledby="s2-h">
+    <h2 class="step__h" id="s2-h"><span class="step__no">2</span>位置と大きさを合わせる</h2>
+    <div class="stage" id="stage">
+      <canvas id="view" width="1080" height="1080" aria-label="リングを付けたアイコンのプレビュー" role="img"></canvas>
+      <button type="button" class="stage__empty" id="empty">
+        <span class="stage__plus" aria-hidden="true">＋</span>
+        <span>画像を選ぶ</span>
+      </button>
+    </div>
+    <label class="round"><input type="checkbox" id="round">丸く表示して確認する<span class="round__sub">（X・Spoonでの見え方）</span></label>
+
+    <div class="pad" id="pad" aria-label="アイコンの調整">
+      <div class="pad__zoom">
+        <button type="button" class="ctl" data-act="in"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M10.5 7.5v6M7.5 10.5h6"/></svg>拡大</button>
+        <button type="button" class="ctl" data-act="out"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M7.5 10.5h6"/></svg>縮小</button>
+      </div>
+      <div class="pad__move">
+        <button type="button" class="ctl ctl--arrow" data-act="up" aria-label="上へ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg></button>
+        <button type="button" class="ctl ctl--arrow" data-act="left" aria-label="左へ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11.5 5.5L5 12l6.5 6.5"/></svg></button>
+        <button type="button" class="ctl ctl--arrow" data-act="right" aria-label="右へ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12.5 5.5L19 12l-6.5 6.5"/></svg></button>
+        <button type="button" class="ctl ctl--arrow" data-act="down" aria-label="下へ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5.5 12.5L12 19l6.5-6.5"/></svg></button>
+      </div>
+      <button type="button" class="reset" data-act="reset">最初の位置に戻す</button>
+    </div>
+    <p class="note">ボタンは押し続けると連続で動きます。画像を指でなぞって動かしたり、2本の指で広げて拡大したりもできます。</p>
+  </section>
+
+  <!-- 3. save -->
+  <section class="step" aria-labelledby="s3-h">
+    <h2 class="step__h" id="s3-h"><span class="step__no">3</span>保存する</h2>
+    <button type="button" class="btn btn--lg btn--red save" id="save">この画像で保存する</button>
+    <div class="result" id="result" hidden tabindex="-1">
+      <p class="result__how" id="how"></p>
+      <img id="out" alt="リングを付けたアイコン（完成画像）" width="1080" height="1080">
+      <div class="result__btns">
+        <button type="button" class="btn btn--lg btn--red" id="share" hidden>写真に保存・共有する</button>
+        <a class="btn btn--lg btn--line" id="dl" download="svarac_icon.jpg">ダウンロード</a>
+        <a class="btn btn--lg btn--line" id="open" target="_blank" rel="noopener">画像だけを別のタブで開く</a>
+      </div>
+      <p class="note">うまく保存できないときは、X や LINE のアプリ内ではなく、Safari や Chrome でこのページを開き直してお試しください。</p>
+    </div>
+  </section>
+
+  <section class="tag">
+    <p>アイコンを変えたら「<b>#スバラシー</b>」でポストしてね</p>
+  </section>
+</main>
+
+<footer class="foot">
+  <a class="btn btn--line foot__top" href="../">SVARAC トップへ</a>
+  <p class="foot__copy">© 2026 SVARAC</p>
+</footer>
+
+<div class="boot-fail" id="boot-fail" hidden>
+  <p><b>このブラウザでは、うまく動きませんでした。</b></p>
+  <p>Safari や Chrome の最新版で開き直してお試しください。</p>
+</div>
+<noscript><div class="boot-fail"><p>このページを使うには JavaScript を有効にしてください。</p></div></noscript>
+<script>
+  window.addEventListener('load', function () {
+    setTimeout(function () { if (!window.RING_OK) { var d = document.getElementById('boot-fail'); if (d) d.hidden = false; } }, 300);
+  });
+</script>
+<script src="ring.js?v=1"></script>
+</body>
+</html>
