@@ -221,8 +221,15 @@ main{position:relative;z-index:1}
 
 /* ---------- contents: links to the fan pages ---------- */
 .contents{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:var(--s2)}
-.contents__arrow{margin-left:.6em;transition:transform .2s}
-@media (hover:hover){.contents a:hover .contents__arrow{transform:translateX(4px)}}
+.contents__link{display:inline-flex;align-items:center;gap:18px;min-height:48px;padding:0 18px 0 20px;border:1px solid var(--rule);border-radius:var(--radius-ui);
+  background:linear-gradient(180deg,rgba(255,194,26,.07),rgba(255,194,26,0));color:var(--cream);text-decoration:none;
+  font-weight:700;font-size:.875rem;line-height:1;letter-spacing:.12em;transition:border-color .2s,background-color .2s}
+.contents__arrow{color:var(--gold);letter-spacing:0;transition:transform .2s}
+@media (hover:hover){
+  .contents__link:hover{border-color:var(--gold);background-color:rgba(255,194,26,.06)}
+  .contents__link:hover span:first-child{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px}
+  .contents__link:hover .contents__arrow{transform:translateX(4px)}
+}
 
 /* ---------- archive: a timeline that draws itself ---------- */
 .timeline{position:relative;padding-left:var(--s4)}
