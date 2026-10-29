@@ -219,6 +219,11 @@ main{position:relative;z-index:1}
   .is-scrollable:not(.at-end) > .staff{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent)}
 }
 
+/* ---------- contents: links to the fan pages ---------- */
+.contents{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:var(--s2)}
+.contents__arrow{margin-left:.6em;transition:transform .2s}
+@media (hover:hover){.contents a:hover .contents__arrow{transform:translateX(4px)}}
+
 /* ---------- archive: a timeline that draws itself ---------- */
 .timeline{position:relative;padding-left:var(--s4)}
 .timeline__line{position:absolute;left:7px;top:10px;bottom:10px;width:1px;background:var(--rule-soft)}
