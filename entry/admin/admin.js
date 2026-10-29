@@ -11,6 +11,7 @@
   const ST_ORDER = { '再提出': 0, '新着': 1, '不備あり': 2, '': 3, 'OK': 4 };
   const TPL = [['request', '依頼'], ['remind', 'リマインド'], ['ng', '不備連絡'], ['ok', '確認OK']];
   const KEYS = ['a', 'b', 'c', 'd'];
+  const ICON_MAX = 10 * 1024 * 1024;
 
   let pw = SV.store.get(KEY) || local.get(KEY) || '';
   let D = null;                 // { guests, settings, links }
@@ -36,14 +37,60 @@
     if (location.hash) location.hash = ''; else route();
   }
   function shortAt(at) { return at ? String(at).slice(5, 16) : ''; }
-  function typeLabel(t) { return t === 'B' ? 'B ボイメのみ' : t === 'C' ? 'C CMのみ' : 'A クイズ案＋ボイメ'; }
-  /* the audio fields a guest is asked for, plus any other kind they happen to have handed in */
+  function typeLabel(t) { return t === 'B' ? 'B ボイメのみ' : t === 'C' ? 'C CMのみ' : t === 'Z' ? 'Z スタッフ' : 'A クイズ案＋ボイメ'; }
+  function asksQuiz(g) { return g.type !== 'B' && g.type !== 'C' && g.type !== 'Z'; }
+  /* the audio fields a guest is asked for, plus any other kind they happen to have handed in (staff: only what was handed in) */
   function audioSlots(g) {
     const s = g.sum || {};
     const all = [['intro', '自己紹介', s.intro], ['quizAudio', 'クイズ', s.quizAudio], ['cm', 'CM', s.cm]];
-    return all.filter(function (x) { return x[2] || (g.type === 'C' ? x[0] === 'cm' : x[0] !== 'cm'); });
+    return all.filter(function (x) { return x[2] || (g.type === 'Z' ? false : g.type === 'C' ? x[0] === 'cm' : x[0] !== 'cm'); });
   }
-  function stBadge(s) { s = s || ''; return '<span class="st ' + ST_CLASS[s] + '">' + ST_LABEL[s] + '</span>'; }
+  function stBadge(s) {
+    s = s || '';
+    if (!(s in ST_LABEL)) return '<span class="st st-none">' + esc(s) + '</span>';   // typed by hand in the sheet
+    return '<span class="st ' + ST_CLASS[s] + '">' + ST_LABEL[s] + '</span>';
+  }
+  function stOrder(g) {
+    if (g.type === 'Z' && !g.status) return 5;   // staff with nothing to check go last
+    const o = ST_ORDER[g.status || ''];
+    return o === undefined ? 3 : o;
+  }
+  /* ---------- icons ---------- */
+  function iconFile(g) { return g.iconName || (SV.safeName(g.name) + '_アイコン.jpg'); }
+  function avatar(g, big) {
+    const cls = 'ava' + (big ? ' ava--lg' : '');
+    if (g.icon && g.iconThumb) return '<span class="' + cls + '"><img src="' + esc(g.iconThumb) + '" alt=""></span>';
+    if (g.icon) return '<span class="' + cls + '" title="アイコン登録済み">' + SV.icon.image + '</span>';
+    return '<span class="' + cls + ' ava--none" title="アイコン未登録">' + esc(String(g.name || '?').charAt(0)) + '</span>';
+  }
+  /* small square preview for the list (kept in the sheet, so the list shows icons without loading every image) */
+  function makeThumb(file) {
+    return new Promise(function (resolve) {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = function () {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        let thumb = '';
+        try {
+          const S = 160, m = Math.min(w, h), c = document.createElement('canvas');
+          c.width = S; c.height = S;
+          const x = c.getContext('2d');
+          x.fillStyle = '#ffffff'; x.fillRect(0, 0, S, S);
+          x.imageSmoothingQuality = 'high';
+          x.drawImage(img, (w - m) / 2, (h - m) / 2, m, m, 0, 0, S, S);
+          thumb = c.toDataURL('image/jpeg', 0.82);
+          if (thumb.length > 40000) thumb = c.toDataURL('image/jpeg', 0.6);
+        } catch (e) { thumb = ''; }
+        URL.revokeObjectURL(url);
+        resolve({ thumb: thumb, w: w, h: h });
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
+  }
+  function isIconFile(file) {
+    return /^image\/(jpeg|png)$/.test(file.type || '') || ['jpg', 'jpeg', 'png'].indexOf(SV.ext(file.name)) >= 0;
+  }
   const copy = SV.copy;
   function save(blob, name) {
     const a = document.createElement('a');
@@ -62,6 +109,23 @@
       }).catch(function (err) { delete blobs[fileId]; throw err; });
     }
     return blobs[fileId];
+  }
+  /* one file at a time, so a big set doesn't hit Google with many large downloads at once */
+  function zipFiles(parts, zipName, btn) {
+    if (!window.JSZip) return Promise.reject(new Error('ZIPの部品を読み込めませんでした。ページを再読み込みしてください'));
+    let got = 0;
+    const label = btn.innerHTML;
+    const step = function () { btn.innerHTML = '<span class="spin"></span>ZIPを作っています…（' + got + '/' + parts.length + '）'; };
+    btn.disabled = true; step();
+    return parts.reduce(function (chain, f) {
+      return chain.then(function (list) {
+        return getBlob(f.id).then(function (b) { got++; step(); return list.concat([b]); });
+      });
+    }, Promise.resolve([])).then(function (list) {
+      const zip = new window.JSZip();
+      list.forEach(function (blob, i) { zip.file(parts[i].dl, blob); });
+      return zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    }).then(function (z) { save(z, zipName); }).finally(function () { btn.disabled = false; btn.innerHTML = label; });
   }
   /* 名前_自己紹介.wav / 名前_クイズ1.wav, 名前_クイズ2.wav … (numbered only when there are several) */
   function dlName(g, label, fileName, no, count) {
@@ -134,7 +198,7 @@
       const mark = st === 'ok' ? '✓' : st === 'giga' ? 'ギガ' : '−';
       return '<span class="pc ' + cls + '">' + mark + ' ' + label + '</span>';
     };
-    if ((g.type !== 'B' && g.type !== 'C') || s.quizAt) out.push(chip('クイズ案', s.quizAt ? 'ok' : 'no'));
+    if (asksQuiz(g) || s.quizAt) out.push(chip('クイズ案', s.quizAt ? 'ok' : 'no'));
     const n = function (sl) { return sl && sl.files && sl.files.length > 1 ? ' ×' + sl.files.length : ''; };
     audioSlots(g).forEach(function (x) {
       out.push(chip((x[0] === 'quizAudio' ? 'クイズ音源' : x[1] === 'CM' ? 'CM音源' : x[1]) + n(x[2]), x[2] ? 'ok' : s.giga ? 'giga' : 'no'));
@@ -144,7 +208,9 @@
   function matches(g) {
     const st = g.status || '';
     if (filter.status === 'todo' && !(st === '新着' || st === '再提出')) return false;
-    if (filter.status !== 'all' && filter.status !== 'todo' && st !== filter.status) return false;
+    if (filter.status === 'staff' && g.type !== 'Z') return false;
+    if (filter.status === '' && (st || g.type === 'Z')) return false;   // 「未提出」にスタッフは入れない
+    if ((filter.status === '不備あり' || filter.status === 'OK') && st !== filter.status) return false;
     if (filter.date !== 'all' && String(g.date) !== filter.date) return false;
     if (filter.q) {
       const q = SV.kana(filter.q);
@@ -154,7 +220,7 @@
   }
   function renderList() {
     const all = D.guests.slice().sort(function (a, b) {
-      const d = ST_ORDER[a.status || ''] - ST_ORDER[b.status || ''];
+      const d = stOrder(a) - stOrder(b);
       return d || (a.yomi < b.yomi ? -1 : a.yomi > b.yomi ? 1 : 0);
     });
     const dates = all.map(function (g) { return String(g.date); }).filter(function (d, i, arr) { return d && arr.indexOf(d) === i; }).sort();
@@ -165,13 +231,17 @@
       ['all', 'すべて', inDate.length],
       ['todo', '要確認', count(function (g) { return g.status === '新着' || g.status === '再提出'; })],
       ['不備あり', '不備あり', count(function (g) { return g.status === '不備あり'; })],
-      ['', '未提出', count(function (g) { return !g.status; })],
+      ['', '未提出', count(function (g) { return !g.status && g.type !== 'Z'; })],
       ['OK', 'OK', count(function (g) { return g.status === 'OK'; })],
     ];
+    const staff = count(function (g) { return g.type === 'Z'; });
+    if (staff) chips.push(['staff', 'スタッフ', staff]);
+    else if (filter.status === 'staff') filter.status = 'all';
     const errs = D.errors || [];
     shell({},
       (errs.length ? '<p class="notice notice--err" style="margin-bottom:16px">直近7日で、受け皿に想定外のエラーが' + errs.length + '件ありました（最新：' + esc(errs[0].at.slice(5, 16)) + '）。送れなかったゲストがいないか確認してください。くわしくはスプレッドシートの「エラー記録」シートにあります。</p>' : '') +
-      '<div class="adm-head"><h2 class="adm-h">ゲスト一覧<small>' + all.length + '人</small></h2><a class="btn btn--gold" href="#new">＋ ゲストを登録</a></div>' +
+      '<div class="adm-head"><h2 class="adm-h">ゲスト一覧<small>' + all.length + '人</small></h2><div class="adm-head__btns">' +
+        '<button type="button" class="btn btn--line" id="icons-zip" hidden></button><a class="btn btn--gold" href="#new">＋ ゲストを登録</a></div></div>' +
       (all.length ? '<div class="adm-filters">' +
         '<div class="chips">' + chips.map(function (c) {
           return '<button type="button" class="chip" data-st="' + esc(c[0]) + '" aria-pressed="' + (filter.status === c[0]) + '">' + c[1] + ' <b>' + c[2] + '</b></button>';
@@ -185,19 +255,23 @@
         '<ul class="glist" id="glist"></ul>'
       : '<div class="empty-state"><p>まだゲストが登録されていません。</p><a class="btn btn--gold btn--lg" href="#new">＋ 最初のゲストを登録</a></div>'));
     if (!all.length) return;
-    const listEl = $('#glist');
+    const listEl = $('#glist'), iconsBtn = $('#icons-zip');
+    let iconRows = [];
     function draw() {
       const rows = all.filter(matches);
+      iconRows = rows.filter(function (g) { return !!g.icon; });
+      iconsBtn.hidden = !iconRows.length;
+      iconsBtn.textContent = 'アイコンをZIPでDL（' + iconRows.length + '人）';
       listEl.innerHTML = rows.length ? rows.map(function (g) {
         const s = g.sum || {};
-        return '<li><a class="grow" href="#g/' + esc(g.id) + '">' +
+        return '<li><a class="grow" href="#g/' + esc(g.id) + '">' + avatar(g) +
           '<div class="grow__main">' +
             '<div class="grow__name">' + esc(g.name) + '<small>' + esc(g.yomi) + '</small></div>' +
             '<div class="grow__tags"><span class="pill pill--type">' + typeLabel(g.type) + '</span>' + (g.date ? '<span class="pill">回 ' + esc(g.date) + '</span>' : '') +
               (g.open === false || String(g.open).toUpperCase() === 'FALSE' ? '<span class="pill pill--warn">受付停止</span>' : '') + '</div>' +
             '<div class="prog">' + progChips(g) + '</div>' +
           '</div>' +
-          '<div class="grow__side">' + stBadge(g.status) + (s.lastAt ? '<span class="grow__at">最終 ' + esc(shortAt(s.lastAt)) + '</span>' : '') + '</div>' +
+          '<div class="grow__side">' + (g.type === 'Z' && !g.status ? '' : stBadge(g.status)) + (s.lastAt ? '<span class="grow__at">最終 ' + esc(shortAt(s.lastAt)) + '</span>' : '') + '</div>' +
         '</a></li>';
       }).join('') : '<li class="empty-state">該当するゲストはいません</li>';
     }
@@ -209,6 +283,12 @@
         draw();
       });
     });
+    iconsBtn.addEventListener('click', function () {
+      // the icons of the guests shown right now (filters apply)
+      const tag = filter.date !== 'all' ? filter.date : dates.length === 1 ? dates[0] : 'すべて';
+      const parts = iconRows.map(function (g) { return { id: String(g.icon), dl: iconFile(g) }; });
+      zipFiles(parts, 'アイコン_' + SV.safeName(tag) + '.zip', iconsBtn).catch(function (err) { SV.toast(err.message); });
+    });
     $('#f-date').addEventListener('change', function (e) { filter.date = e.target.value; renderList(); });
     $('#f-q').addEventListener('input', function (e) { filter.q = e.target.value.trim(); draw(); });
   }
@@ -218,7 +298,7 @@
     const tpl = D.settings['tpl_' + key] || '';
     return tpl.replace(/\{名前\}/g, g.name)
       .replace(/\{URL\}/g, D.settings.url || '')
-      .replace(/\{内容\}/g, g.type === 'B' ? 'ボイメ' : g.type === 'C' ? 'CMの音源' : 'クイズ案（2問）とボイメ')
+      .replace(/\{内容\}/g, g.type === 'B' || g.type === 'Z' ? 'ボイメ' : g.type === 'C' ? 'CMの音源' : 'クイズ案（2問）とボイメ')
       .replace(/\{メモ\}/g, memo || '（ここに修正してほしい内容）');
   }
   function defaultTpl(status) { return !status ? 'request' : status === '不備あり' ? 'ng' : status === 'OK' ? 'ok' : 'ok'; }
@@ -268,12 +348,14 @@
     const s = g.sum || {};
     const zipName = SV.safeName(g.name) + '_' + (g.date || D.settings.date) + '.zip';
     shell({ back: '#', title: g.name },
-      '<section class="card"><div class="d-head"><div><h2 class="d-name">' + esc(g.name) + '</h2><p class="d-yomi">' + esc(g.yomi) + '</p></div>' +
+      '<section class="card"><div class="d-head"><div class="d-who"><span id="d-ava">' + avatar(g, true) + '</span><div><h2 class="d-name">' + esc(g.name) + '</h2><p class="d-yomi">' + esc(g.yomi) + '</p></div></div>' +
         '<a class="btn btn--line btn--sm" href="#edit/' + esc(g.id) + '">編集</a></div>' +
         '<div class="d-tags"><span class="pill pill--type">' + typeLabel(g.type) + '</span>' + (g.date ? '<span class="pill">回 ' + esc(g.date) + '</span>' : '') +
           (g.open === false || String(g.open).toUpperCase() === 'FALSE' ? '<span class="pill pill--warn">受付停止中（候補に出ません）</span>' : '') + '</div>' +
         '<div class="prog" style="margin-top:10px">' + progChips(g) + '</div>' +
       '</section>' +
+
+      '<section class="card" id="icon-card"><h2 class="card__h">アイコン画像</h2><div id="icon-body"></div></section>' +
 
       '<section class="card" id="st-card"><h2 class="card__h">ステータス</h2>' +
         '<div class="seg seg--status" role="radiogroup" aria-label="ステータス">' + STATUS.map(function (k) {
@@ -294,7 +376,7 @@
           (g.x ? '<button type="button" class="btn btn--red" id="tpl-copyx">コピーしてXを開く</button>' : '') + '</div>' +
       '</section>' +
 
-      '<section class="card" id="quiz-card"' + ((g.type === 'B' || g.type === 'C') && !s.quizAt ? ' hidden' : '') + '><div class="card__top"><h2 class="card__h">クイズ案</h2>' +
+      '<section class="card" id="quiz-card"' + (!asksQuiz(g) && !s.quizAt ? ' hidden' : '') + '><div class="card__top"><h2 class="card__h">クイズ案</h2>' +
         '<a class="btn btn--line btn--sm" href="#proxy-quiz/' + esc(g.id) + '">代理入力・修正</a></div><div id="quiz-body"><div class="loading"><span class="spin"></span>読み込んでいます…</div></div></section>' +
 
       '<section class="card" id="voice-card"><div class="card__top"><h2 class="card__h">ボイメ</h2>' +
@@ -304,7 +386,8 @@
           '<p style="margin-top:6px"><a href="' + esc(s.giga.url) + '" target="_blank" rel="noopener">' + esc(s.giga.url) + '</a></p>' +
           '<p class="hint">ZIPには入りません。DLした音源を「代理入力」から入れると、ZIPに含められます。</p></div>' : '') +
         '<div id="voice-note"></div>' +
-        '<div class="actions"><button type="button" class="btn btn--gold btn--lg btn--block" id="zip"' + (s.intro || s.quizAudio || s.cm ? '' : ' disabled') + '>ZIPでまとめてDL（' + esc(zipName) + '）</button></div>' +
+        '<div class="actions"><button type="button" class="btn btn--gold btn--lg btn--block" id="zip"' + (s.intro || s.quizAudio || s.cm || g.icon ? '' : ' disabled') + '>ZIPでまとめてDL（' + esc(zipName) + '）</button>' +
+          '<p class="hint" id="zip-hint"' + (g.icon ? '' : ' hidden') + '>アイコン画像も一緒に入ります。</p></div>' +
         '<div id="voice-hist"></div>' +
       '</section>');
 
@@ -371,30 +454,14 @@
       }, function (err) { SV.toast(err.message); }).finally(function () { btn.disabled = false; btn.innerHTML = label; });
     });
     $('#zip').addEventListener('click', function () {
-      const btn = this;
-      if (!window.JSZip) { SV.toast('ZIPの部品を読み込めませんでした。ページを再読み込みしてください'); return; }
       const parts = slotFiles(g, '自己紹介', s.intro).concat(slotFiles(g, 'クイズ', s.quizAudio), slotFiles(g, 'CM', s.cm));
-      const label = btn.innerHTML;
-      btn.disabled = true; btn.innerHTML = '<span class="spin"></span>ZIPを作っています…（0/' + parts.length + '）';
-      let got = 0;
-      // one file at a time, so a big set doesn't hit Google with many large downloads at once
-      parts.reduce(function (chain, f) {
-        return chain.then(function (blobs) {
-          return getBlob(f.id).then(function (b) {
-            got++;
-            btn.innerHTML = '<span class="spin"></span>ZIPを作っています…（' + got + '/' + parts.length + '）';
-            return blobs.concat([b]);
-          });
-        });
-      }, Promise.resolve([])).then(function (list) {
-        const zip = new window.JSZip();
-        list.forEach(function (blob, i) { zip.file(parts[i].dl, blob); });
-        return zip.generateAsync({ type: 'blob', compression: 'STORE' });
-      }).then(function (z) {
-        save(z, zipName);
+      if (g.icon) parts.push({ id: String(g.icon), dl: iconFile(g) });
+      zipFiles(parts, zipName, this).then(function () {
         if (audioSlots(g).some(function (x) { return !x[2]; })) SV.toast('揃っている音源だけでZIPにしました');
-      }, function (err) { SV.toast(err.message); }).finally(function () { btn.disabled = false; btn.innerHTML = label; });
+      }, function (err) { SV.toast(err.message); });
     });
+
+    iconCard(g);
 
     // submissions & history
     (details[id] ? Promise.resolve(details[id]) : A('guestDetail', { id: id }).then(function (r) { details[id] = r; return r; }))
@@ -426,6 +493,130 @@
       });
   }
 
+  /* ---------- icon card (guest page) ---------- */
+  function iconCard(g) {
+    const body = $('#icon-body'), card = $('#icon-card');
+    let busy = false;
+    function draw(localUrl) {
+      const has = !!g.icon;
+      body.innerHTML =
+        '<div class="icon-box">' +
+          '<div class="icon-prev" id="icon-prev">' + (localUrl ? '<img src="' + esc(localUrl) + '" alt="">' : has
+            ? (g.iconThumb ? '<img src="' + esc(g.iconThumb) + '" alt="">' : '') + '<span class="spin"></span>'
+            : '<span class="empty">未登録</span>') + '</div>' +
+          '<div class="icon-side">' +
+            (has ? '<p class="icon-name">' + esc(iconFile(g)) + '</p><p class="hint" id="icon-info">' + esc(['登録 ' + shortAt(g.iconAt), SV.bytes(g.iconSize)].filter(Boolean).join('・')) + '</p>'
+              : '<p class="icon-name muted">まだ登録されていません</p>') +
+            '<div class="arow__btns">' +
+              '<button type="button" class="btn btn--' + (has ? 'line' : 'gold') + ' btn--sm" data-act="pick">' + (has ? '画像を差し替える' : '画像を選ぶ') + '</button>' +
+              (has ? '<button type="button" class="btn btn--line btn--sm" data-act="dl">DL（' + esc(iconFile(g)) + '）</button>' +
+                '<a class="btn btn--ghost btn--sm" href="https://drive.google.com/file/d/' + encodeURIComponent(g.icon) + '/view" target="_blank" rel="noopener">ドライブで開く</a>' : '') +
+            '</div>' +
+            '<input type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" hidden>' +
+            '<p class="hint">JPG・PNG（10MBまで）。この枠に画像をドラッグしても登録できます。<br>ドライブのゲストのフォルダに「' + esc(SV.safeName(g.name)) + '_アイコン」の名前で保存されます。' +
+              (has ? '差し替えると、前の画像は「_旧_日時」を付けて残ります。' : '') + '</p>' +
+            (has ? '<p style="margin-top:8px"><button type="button" class="linkbtn danger-link" data-act="rm">アイコンを外す</button></p>' : '') +
+            '<p class="notice notice--err" id="icon-err" hidden></p>' +
+          '</div>' +
+        '</div>';
+      $('#d-ava').innerHTML = avatar(g, true);
+      $('#zip-hint').hidden = !g.icon;
+      const z = $('#zip'), s = g.sum || {};
+      if (z) z.disabled = !(s.intro || s.quizAudio || s.cm || g.icon);
+      if (has && !localUrl) {
+        // the real image (not just the square preview), so a non-square picture shows whole
+        getBlob(String(g.icon)).then(function (blob) {
+          const box = $('#icon-prev');
+          if (!box || location.hash !== '#g/' + g.id) return;
+          const url = URL.createObjectURL(blob);
+          const img = new Image();
+          img.onload = function () {
+            box.innerHTML = ''; box.appendChild(img);
+            const info = $('#icon-info');
+            if (info) info.textContent = ['登録 ' + shortAt(g.iconAt), SV.bytes(g.iconSize || blob.size), img.naturalWidth + '×' + img.naturalHeight + 'px'].filter(Boolean).join('・');
+          };
+          img.onerror = function () { $('.spin', box) && $('.spin', box).remove(); };
+          img.alt = '';
+          img.src = url;
+        }, function (err) {
+          const box = $('#icon-prev');
+          if (!box) return;
+          const sp = $('.spin', box); if (sp) sp.remove();
+          showErr(err.message);
+        });
+      }
+    }
+    function showErr(msg) { const e = $('#icon-err'); if (e) { e.hidden = !msg; e.textContent = msg || ''; } }
+    function upload(file) {
+      if (busy || !file) return;
+      showErr('');
+      if (!isIconFile(file)) { showErr('JPGかPNGの画像を選んでください（' + (file.name || 'このファイル') + 'は使えません）'); return; }
+      if (file.size > ICON_MAX) { showErr('画像は10MBまでにしてください（' + SV.bytes(file.size) + '）'); return; }
+      busy = true;
+      const localUrl = URL.createObjectURL(file);
+      makeThumb(file).then(function (t) {
+        if (!t) throw new Error('画像を読み込めませんでした。JPGかPNGの画像を選んでください');
+        draw(localUrl);
+        const box = $('#icon-prev');
+        box.classList.add('is-busy');
+        box.insertAdjacentHTML('beforeend', '<span class="spin"></span>');
+        $$('[data-act]', body).forEach(function (b) { b.disabled = true; });
+        return SV.readBase64(file).then(function (b64) {
+          return A('uploadIcon', { id: g.id, sid: SV.sid('i'), fileName: file.name, mime: file.type || '', data: b64, thumb: t.thumb }, { timeout: 300000 });
+        }).then(function (r) {
+          ['icon', 'iconName', 'iconSize', 'iconAt', 'iconThumb', 'folder'].forEach(function (k) { g[k] = r.guest[k]; });
+          blobs[String(g.icon)] = Promise.resolve(file);
+          busy = false;
+          draw();
+          SV.toast('登録しました：' + iconFile(g));
+        });
+      }).catch(function (err) {
+        busy = false;
+        URL.revokeObjectURL(localUrl);
+        draw();
+        showErr(err.message);
+      });
+    }
+    body.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-act]');
+      if (!btn || busy) return;
+      const act = btn.getAttribute('data-act');
+      if (act === 'pick') { $('input[type=file]', body).click(); return; }
+      if (act === 'dl') {
+        const label = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '<span class="spin"></span>読み込み中…';
+        getBlob(String(g.icon)).then(function (blob) { save(blob, iconFile(g)); }, function (err) { SV.toast(err.message); })
+          .finally(function () { btn.disabled = false; btn.innerHTML = label; });
+        return;
+      }
+      if (act === 'rm') {
+        if (!window.confirm('アイコンを外しますか？\n画像はドライブのゲストのフォルダに「_旧_日時」付きの名前で残ります。')) return;
+        busy = true; btn.disabled = true;
+        A('removeIcon', { id: g.id }).then(function (r) {
+          ['icon', 'iconName', 'iconSize', 'iconAt', 'iconThumb'].forEach(function (k) { g[k] = r.guest[k]; });
+          SV.toast('アイコンを外しました');
+        }, function (err) { SV.toast(err.message); }).finally(function () { busy = false; draw(); });
+      }
+    });
+    body.addEventListener('change', function (e) {
+      if (e.target.type !== 'file') return;
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      upload(f);
+    });
+    // drag an image onto the card
+    let depth = 0;
+    card.addEventListener('dragenter', function (e) { e.preventDefault(); depth++; card.classList.add('is-over'); });
+    card.addEventListener('dragover', function (e) { e.preventDefault(); });
+    card.addEventListener('dragleave', function () { depth = Math.max(0, depth - 1); if (!depth) card.classList.remove('is-over'); });
+    card.addEventListener('drop', function (e) {
+      e.preventDefault(); depth = 0; card.classList.remove('is-over');
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) upload(f);
+    });
+    draw();
+  }
+
   /* ---------- guest editor ---------- */
   function renderEditor(id) {
     const g = id ? guestOf(id) : null;
@@ -438,12 +629,13 @@
         '<div class="field"><label for="ed-yomi">読み <span class="tag tag--req">必須</span></label><input class="input" id="ed-yomi" maxlength="60" value="' + esc(v.yomi) + '" placeholder="ひらがなで（例：やまだはなこ）"><p class="hint">公開ページでは、この読みの1文字目から候補が出ます。</p><p class="err"></p></div>' +
         '<div class="field"><label for="ed-x">XのID <span class="tag tag--opt">任意</span></label><input class="input" id="ed-x" maxlength="200" value="' + esc(v.x) + '" placeholder="@なしで（プロフィールURLを貼ってもOK）" autocapitalize="off" autocomplete="off" spellcheck="false"></div>' +
         '<fieldset class="field"><legend>ゲスト内容 <span class="tag tag--req">必須</span></legend><div class="seg seg--ab">' +
-          '<label><input type="radio" name="ed-type" value="A"' + (v.type !== 'B' && v.type !== 'C' ? ' checked' : '') + '><span>A<br>クイズ案＋ボイメ</span></label>' +
+          '<label><input type="radio" name="ed-type" value="A"' + (['B', 'C', 'Z'].indexOf(v.type) < 0 ? ' checked' : '') + '><span>A<br>クイズ案＋ボイメ</span></label>' +
           '<label><input type="radio" name="ed-type" value="B"' + (v.type === 'B' ? ' checked' : '') + '><span>B<br>ボイメのみ</span></label>' +
           '<label><input type="radio" name="ed-type" value="C"' + (v.type === 'C' ? ' checked' : '') + '><span>C<br>CMのみ</span></label>' +
-        '</div></fieldset>' +
+          '<label><input type="radio" name="ed-type" value="Z"' + (v.type === 'Z' ? ' checked' : '') + '><span>Z<br>スタッフ</span></label>' +
+        '</div><p class="hint" id="ed-z-hint"' + (v.type === 'Z' ? '' : ' hidden') + '>スタッフは公開ページの名前候補には出ません。音源などは、このあとゲストのページの「代理入力」から入れられます。</p></fieldset>' +
         '<div class="field"><label for="ed-date">回</label><input class="input" id="ed-date" maxlength="20" value="' + esc(v.date) + '" inputmode="numeric" placeholder="例：1128"><p class="hint">ZIPの名前（ゲスト名_1128.zip）とドライブのフォルダ名に使います。</p></div>' +
-        '<label class="check"><input type="checkbox" id="ed-open"' + (isOpen ? ' checked' : '') + '>受付中（公開ページの名前候補に出す）</label>' +
+        '<label class="check" id="ed-open-row"' + (v.type === 'Z' ? ' hidden' : '') + '><input type="checkbox" id="ed-open"' + (isOpen ? ' checked' : '') + '>受付中（公開ページの名前候補に出す）</label>' +
         '<p class="notice notice--err" id="ed-err" hidden></p>' +
         '<div class="actions">' + (g
           ? '<button type="submit" class="btn btn--red btn--lg btn--block" data-mode="save">保存する</button><button type="button" class="btn btn--line btn--block danger" id="ed-del">このゲストを削除</button>'
@@ -451,6 +643,13 @@
         '</div>' +
       '</form>');
     const form = $('#ed'), err = $('#ed-err');
+    $$('input[name=ed-type]', form).forEach(function (r) {
+      r.addEventListener('change', function () {
+        const z = r.value === 'Z' && r.checked;
+        $('#ed-z-hint').hidden = !z;
+        $('#ed-open-row').hidden = z;   // staff are never offered on the public page anyway
+      });
+    });
     let newId = g ? '' : SV.sid('g');
     if (!g) $('#ed-name').focus();
     let mode = 'save';

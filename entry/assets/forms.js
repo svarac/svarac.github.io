@@ -183,7 +183,7 @@
     const proxy = !!opts.guest;
     const guard = leaveGuard();
     const drafts = draftStore('quiz', !proxy);
-    const isQuizGuest = function (g) { return g.type !== 'B' && g.type !== 'C'; };
+    const isQuizGuest = function (g) { return g.type !== 'B' && g.type !== 'C' && g.type !== 'Z'; };
     let draftTimer = 0;
 
     function qBlock(n) {
@@ -448,7 +448,7 @@
       '<div class="actions"><button type="submit" class="btn btn--red btn--lg btn--block">入力内容を確認する</button></div>' +
     '</form>';
     const form = $('form', v.edit), formErr = $('.form-err', v.edit), gigaIn = $('#' + u + '-giga'), noteIn = $('#' + u + '-note');
-    // 自己紹介 1本・クイズ 5本まで（A/B のゲスト）／ CM 1本（C のゲスト）
+    // 自己紹介 1本・クイズ 5本まで（A/B のゲスト）／ CM 1本（C のゲスト）／ スタッフ（Z・代理入力のみ）は全部
     const ALL = [
       { slot: 'intro', label: '自己紹介', doneKey: 'intro', max: 1 },
       { slot: 'quiz', label: 'クイズ', doneKey: 'quizAudio', max: 5 },
@@ -468,8 +468,9 @@
     let guest = opts.guest || null;
     let SLOTS = [];
     const isCM = function () { return !!(guest && guest.type === 'C'); };
+    const isStaff = function () { return !!(guest && guest.type === 'Z'); };
     function layout() {
-      SLOTS = ALL.filter(function (s) { return isCM() ? s.slot === 'cm' : s.slot !== 'cm'; });
+      SLOTS = ALL.filter(function (s) { return isStaff() || (isCM() ? s.slot === 'cm' : s.slot !== 'cm'); });
       ALL.forEach(function (s) { lists[s.slot].show(SLOTS.indexOf(s) >= 0); });
       const lead = $('.voice-lead', v.edit);
       if (lead) {
