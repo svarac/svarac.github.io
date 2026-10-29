@@ -410,7 +410,7 @@
 
   /* iPhone: a web page can't open Voice Memos, so show the way through the Files app */
   function voiceMemoHowto() {
-    return '<details class="howto" open><summary>iPhoneの「ボイスメモ」で録音した場合</summary><ol>' +
+    return '<details class="howto"><summary><span>「ボイスメモ」の録音を出す方法</span></summary><ol>' +
       '<li>「ボイスメモ」で提出する録音をタップ →「…」→「共有」→「“ファイル”に保存」→ 保存先（「このiPhone内」など）を選んで「保存」</li>' +
       '<li>このページに戻り、下の点線の枠をタップ →「ファイルを選択」</li>' +
       '<li>「最近使った項目」から保存した録音を選ぶ（右上の「選択」で、まとめて選ぶこともできます）</li>' +

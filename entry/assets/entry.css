@@ -231,7 +231,10 @@ a{color:var(--gold-hi);text-underline-offset:3px}
 
 /* iPhone: how to hand in a Voice Memos recording */
 .howto{margin:0 0 var(--s2);padding:12px 14px;border:1px solid var(--rule);border-radius:var(--radius-ui);background:rgba(255,194,26,.06)}
-.howto summary{min-height:32px;display:flex;align-items:center;cursor:pointer;font-weight:700;color:var(--gold-hi)}
+.howto summary{min-height:44px;margin:-6px 0;display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;font-weight:700;color:var(--gold-hi)}
+.howto summary::-webkit-details-marker{display:none}
+.howto summary::after{content:"";flex:none;margin-left:auto;width:9px;height:9px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-3px) rotate(45deg);transition:transform .15s}
+.howto[open] summary::after{transform:translateY(2px) rotate(-135deg)}
 .howto ol{margin:8px 0 0;padding-left:1.4em;font-size:.875rem;line-height:1.8}
 .howto li + li{margin-top:6px}
 .howto__note{margin-top:8px;font-size:.8125rem;color:var(--muted)}
