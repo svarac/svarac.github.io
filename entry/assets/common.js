@@ -349,14 +349,16 @@
 
   /* ---------- a list of audio drop zones with "＋ 追加する" ---------- */
   SV.audioList = function (el, opts) {
-    const max = opts.max || 5;
+    const max = opts.max || 5, multi = max > 1;
     el.classList.add('alist');
     el.innerHTML =
-      '<div class="alist__h">' + SV.esc(opts.label) + (opts.required ? ' <span class="tag tag--req">必須</span>' : '') + '</div>' +
+      '<div class="alist__h"><span class="alist__label">' + SV.esc(opts.label) + '</span>' + (opts.required ? ' <span class="tag tag--req">必須</span>' : '') + '</div>' +
       '<div class="alist__prev" hidden></div>' +
       '<div class="alist__items"></div>' +
-      '<button type="button" class="btn btn--line btn--sm alist__add">＋ ' + SV.esc(opts.addLabel || '追加する') + '</button>' +
-      '<p class="hint alist__hint">複数ある場合は「＋追加する」で欄を増やせます（' + max + '本まで）。ファイルをまとめて選んでも入ります。</p>' +
+      (multi
+        ? '<button type="button" class="btn btn--line btn--sm alist__add">＋ ' + SV.esc(opts.addLabel || '追加する') + '</button>' +
+          '<p class="hint alist__hint">複数ある場合は「＋追加する」で欄を増やせます（' + max + '本まで）。ファイルをまとめて選んでも入ります。</p>'
+        : '<p class="hint alist__hint">1本だけご提出ください。</p>') +
       '<p class="err alist__err"></p>';
     const itemsEl = SV.$('.alist__items', el), addBtn = SV.$('.alist__add', el), errEl = SV.$('.alist__err', el), prev = SV.$('.alist__prev', el);
     const zones = [];
@@ -364,7 +366,7 @@
     function setErr(msg) { errEl.textContent = msg || ''; el.classList.toggle('is-invalid', !!msg); }
     function sync() {
       zones.forEach(function (z, i) { z.setNo(zones.length > 1 ? i + 1 : 0, zones.length > 1); });
-      addBtn.hidden = zones.length >= max;
+      if (addBtn) addBtn.hidden = zones.length >= max;
     }
     function changed(f) {
       setErr('');
@@ -375,7 +377,7 @@
       const box = document.createElement('div');
       itemsEl.appendChild(box);
       const z = SV.dropzone(box, {
-        slot: opts.slot, multiple: true,
+        slot: opts.slot, multiple: multi,
         onExtra: function (files) { addMany(files); },
         onRemove: function () { remove(z); },
         onChange: changed,
@@ -404,7 +406,7 @@
       sync();
       changed(null);
     }
-    addBtn.addEventListener('click', function () {
+    if (addBtn) addBtn.addEventListener('click', function () {
       const z = add();
       if (z) { const lab = SV.$('.drop__zone', z.el); if (lab) lab.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     });
@@ -421,6 +423,8 @@
       },
       setErr: setErr,
       setPrevious: function (html) { prev.innerHTML = html || ''; prev.hidden = !html; },
+      show: function (on) { el.hidden = !on; if (!on) { SV.stopAudio(el); setErr(''); } },
+      visible: function () { return !el.hidden; },
     };
   };
 

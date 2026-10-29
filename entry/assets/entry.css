@@ -109,7 +109,7 @@ a{color:var(--gold-hi);text-underline-offset:3px}
 .seg--status{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
 .seg--status span{font-family:var(--f-body);font-weight:700;font-size:.9375rem;min-height:48px}
 .seg--status input:checked + span::after{content:none}
-.seg--ab{grid-template-columns:1fr 1fr}
+.seg--ab{grid-template-columns:repeat(3,1fr)}
 .seg--ab span{font-family:var(--f-body);font-weight:700;font-size:.9375rem;min-height:56px;padding:6px 10px;text-align:center;line-height:1.4}
 .seg--ab input:checked + span::after{content:none}
 

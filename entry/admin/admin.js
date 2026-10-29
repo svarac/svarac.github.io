@@ -28,7 +28,7 @@
   function guestOf(id) { return (D.guests || []).filter(function (g) { return g.id === id; })[0]; }
   function asFlowGuest(g) {
     const s = g.sum || {};
-    return { id: g.id, name: String(g.name), yomi: String(g.yomi), type: g.type, done: { quiz: !!s.quizAt, intro: !!s.intro, quizAudio: !!s.quizAudio, giga: !!s.giga } };
+    return { id: g.id, name: String(g.name), yomi: String(g.yomi), type: g.type, done: { quiz: !!s.quizAt, intro: !!s.intro, quizAudio: !!s.quizAudio, cm: !!s.cm, giga: !!s.giga } };
   }
   function logout() {
     pw = ''; D = null;
@@ -36,7 +36,13 @@
     if (location.hash) location.hash = ''; else route();
   }
   function shortAt(at) { return at ? String(at).slice(5, 16) : ''; }
-  function typeLabel(t) { return t === 'B' ? 'B ボイメのみ' : 'A クイズ案＋ボイメ'; }
+  function typeLabel(t) { return t === 'B' ? 'B ボイメのみ' : t === 'C' ? 'C CMのみ' : 'A クイズ案＋ボイメ'; }
+  /* the audio fields a guest is asked for, plus any other kind they happen to have handed in */
+  function audioSlots(g) {
+    const s = g.sum || {};
+    const all = [['intro', '自己紹介', s.intro], ['quizAudio', 'クイズ', s.quizAudio], ['cm', 'CM', s.cm]];
+    return all.filter(function (x) { return x[2] || (g.type === 'C' ? x[0] === 'cm' : x[0] !== 'cm'); });
+  }
   function stBadge(s) { s = s || ''; return '<span class="st ' + ST_CLASS[s] + '">' + ST_LABEL[s] + '</span>'; }
   const copy = SV.copy;
   function save(blob, name) {
@@ -128,10 +134,11 @@
       const mark = st === 'ok' ? '✓' : st === 'giga' ? 'ギガ' : '−';
       return '<span class="pc ' + cls + '">' + mark + ' ' + label + '</span>';
     };
-    if (g.type !== 'B' || s.quizAt) out.push(chip('クイズ案', s.quizAt ? 'ok' : 'no'));
+    if ((g.type !== 'B' && g.type !== 'C') || s.quizAt) out.push(chip('クイズ案', s.quizAt ? 'ok' : 'no'));
     const n = function (sl) { return sl && sl.files && sl.files.length > 1 ? ' ×' + sl.files.length : ''; };
-    out.push(chip('自己紹介' + n(s.intro), s.intro ? 'ok' : s.giga ? 'giga' : 'no'));
-    out.push(chip('クイズ音源' + n(s.quizAudio), s.quizAudio ? 'ok' : s.giga ? 'giga' : 'no'));
+    audioSlots(g).forEach(function (x) {
+      out.push(chip((x[0] === 'quizAudio' ? 'クイズ音源' : x[1] === 'CM' ? 'CM音源' : x[1]) + n(x[2]), x[2] ? 'ok' : s.giga ? 'giga' : 'no'));
+    });
     return out.join('');
   }
   function matches(g) {
@@ -211,7 +218,7 @@
     const tpl = D.settings['tpl_' + key] || '';
     return tpl.replace(/\{名前\}/g, g.name)
       .replace(/\{URL\}/g, D.settings.url || '')
-      .replace(/\{内容\}/g, g.type === 'B' ? 'ボイメ' : 'クイズ案（2問）とボイメ')
+      .replace(/\{内容\}/g, g.type === 'B' ? 'ボイメ' : g.type === 'C' ? 'CMの音源' : 'クイズ案（2問）とボイメ')
       .replace(/\{メモ\}/g, memo || '（ここに修正してほしい内容）');
   }
   function defaultTpl(status) { return !status ? 'request' : status === '不備あり' ? 'ng' : status === 'OK' ? 'ok' : 'ok'; }
@@ -287,17 +294,17 @@
           (g.x ? '<button type="button" class="btn btn--red" id="tpl-copyx">コピーしてXを開く</button>' : '') + '</div>' +
       '</section>' +
 
-      '<section class="card" id="quiz-card"' + (g.type === 'B' && !s.quizAt ? ' hidden' : '') + '><div class="card__top"><h2 class="card__h">クイズ案</h2>' +
+      '<section class="card" id="quiz-card"' + ((g.type === 'B' || g.type === 'C') && !s.quizAt ? ' hidden' : '') + '><div class="card__top"><h2 class="card__h">クイズ案</h2>' +
         '<a class="btn btn--line btn--sm" href="#proxy-quiz/' + esc(g.id) + '">代理入力・修正</a></div><div id="quiz-body"><div class="loading"><span class="spin"></span>読み込んでいます…</div></div></section>' +
 
       '<section class="card" id="voice-card"><div class="card__top"><h2 class="card__h">ボイメ</h2>' +
         '<a class="btn btn--line btn--sm" href="#proxy-voice/' + esc(g.id) + '">代理入力</a></div>' +
-        audioSlot(g, '自己紹介', s.intro) + audioSlot(g, 'クイズ', s.quizAudio) +
+        audioSlots(g).map(function (x) { return audioSlot(g, x[1], x[2]); }).join('') +
         (s.giga ? '<div class="arow arow--giga"><div class="arow__top"><span class="arow__h">ギガファイル便</span><span class="arow__info">提出 ' + esc(shortAt(s.giga.at)) + '</span></div>' +
           '<p style="margin-top:6px"><a href="' + esc(s.giga.url) + '" target="_blank" rel="noopener">' + esc(s.giga.url) + '</a></p>' +
           '<p class="hint">ZIPには入りません。DLした音源を「代理入力」から入れると、ZIPに含められます。</p></div>' : '') +
         '<div id="voice-note"></div>' +
-        '<div class="actions"><button type="button" class="btn btn--gold btn--lg btn--block" id="zip"' + (s.intro || s.quizAudio ? '' : ' disabled') + '>ZIPでまとめてDL（' + esc(zipName) + '）</button></div>' +
+        '<div class="actions"><button type="button" class="btn btn--gold btn--lg btn--block" id="zip"' + (s.intro || s.quizAudio || s.cm ? '' : ' disabled') + '>ZIPでまとめてDL（' + esc(zipName) + '）</button></div>' +
         '<div id="voice-hist"></div>' +
       '</section>');
 
@@ -366,7 +373,7 @@
     $('#zip').addEventListener('click', function () {
       const btn = this;
       if (!window.JSZip) { SV.toast('ZIPの部品を読み込めませんでした。ページを再読み込みしてください'); return; }
-      const parts = slotFiles(g, '自己紹介', s.intro).concat(slotFiles(g, 'クイズ', s.quizAudio));
+      const parts = slotFiles(g, '自己紹介', s.intro).concat(slotFiles(g, 'クイズ', s.quizAudio), slotFiles(g, 'CM', s.cm));
       const label = btn.innerHTML;
       btn.disabled = true; btn.innerHTML = '<span class="spin"></span>ZIPを作っています…（0/' + parts.length + '）';
       let got = 0;
@@ -385,7 +392,7 @@
         return zip.generateAsync({ type: 'blob', compression: 'STORE' });
       }).then(function (z) {
         save(z, zipName);
-        if (!s.intro || !s.quizAudio) SV.toast('揃っている音源だけでZIPにしました');
+        if (audioSlots(g).some(function (x) { return !x[2]; })) SV.toast('揃っている音源だけでZIPにしました');
       }, function (err) { SV.toast(err.message); }).finally(function () { btn.disabled = false; btn.innerHTML = label; });
     });
 
@@ -409,11 +416,11 @@
         $('#voice-hist').innerHTML = vs.length
           ? '<details class="hist"><summary>ボイメの提出履歴（' + vs.length + '件）</summary>' + vs.map(function (r) {
             return '<div class="hist__item"><p class="meta">提出 ' + esc(r.at) + '（' + esc(r.by) + '）</p>' +
-              histFiles(g, '自己紹介', r.files && r.files.intro) + histFiles(g, 'クイズ', r.files && r.files.quiz) +
+              histFiles(g, '自己紹介', r.files && r.files.intro) + histFiles(g, 'クイズ', r.files && r.files.quiz) + histFiles(g, 'CM', r.files && r.files.cm) +
               (r.giga ? '<p style="margin-top:8px">ギガファイル便：<a href="' + esc(r.giga) + '" target="_blank" rel="noopener">' + esc(r.giga) + '</a></p>' : '') +
               (r.note ? '<div class="qnote"><b>備考・メッセージ</b>' + esc(r.note) + '</div>' : '') + '</div>';
           }).join('') + '</details>'
-          : (s.intro || s.quizAudio || s.giga ? '' : '<p class="empty" style="margin-top:12px">まだ提出されていません。</p>');
+          : (s.intro || s.quizAudio || s.cm || s.giga ? '' : '<p class="empty" style="margin-top:12px">まだ提出されていません。</p>');
       }, function (err) {
         $('#quiz-body').innerHTML = '<p class="notice notice--err">' + esc(err.message) + '</p>';
       });
@@ -431,8 +438,9 @@
         '<div class="field"><label for="ed-yomi">読み <span class="tag tag--req">必須</span></label><input class="input" id="ed-yomi" maxlength="60" value="' + esc(v.yomi) + '" placeholder="ひらがなで（例：やまだはなこ）"><p class="hint">公開ページでは、この読みの1文字目から候補が出ます。</p><p class="err"></p></div>' +
         '<div class="field"><label for="ed-x">XのID <span class="tag tag--opt">任意</span></label><input class="input" id="ed-x" maxlength="200" value="' + esc(v.x) + '" placeholder="@なしで（プロフィールURLを貼ってもOK）" autocapitalize="off" autocomplete="off" spellcheck="false"></div>' +
         '<fieldset class="field"><legend>ゲスト内容 <span class="tag tag--req">必須</span></legend><div class="seg seg--ab">' +
-          '<label><input type="radio" name="ed-type" value="A"' + (v.type !== 'B' ? ' checked' : '') + '><span>A<br>クイズ案＋ボイメ</span></label>' +
+          '<label><input type="radio" name="ed-type" value="A"' + (v.type !== 'B' && v.type !== 'C' ? ' checked' : '') + '><span>A<br>クイズ案＋ボイメ</span></label>' +
           '<label><input type="radio" name="ed-type" value="B"' + (v.type === 'B' ? ' checked' : '') + '><span>B<br>ボイメのみ</span></label>' +
+          '<label><input type="radio" name="ed-type" value="C"' + (v.type === 'C' ? ' checked' : '') + '><span>C<br>CMのみ</span></label>' +
         '</div></fieldset>' +
         '<div class="field"><label for="ed-date">回</label><input class="input" id="ed-date" maxlength="20" value="' + esc(v.date) + '" inputmode="numeric" placeholder="例：1128"><p class="hint">ZIPの名前（ゲスト名_1128.zip）とドライブのフォルダ名に使います。</p></div>' +
         '<label class="check"><input type="checkbox" id="ed-open"' + (isOpen ? ' checked' : '') + '>受付中（公開ページの名前候補に出す）</label>' +
@@ -520,7 +528,7 @@
         '<div class="field"><label for="set-url">公開ページのURL</label><input class="input" id="set-url" type="url" value="' + esc(st.url) + '"><p class="hint">連絡文の {URL} に入ります。</p></div>' +
       '</section>' +
       '<section class="card"><h2 class="card__h">X連絡の文面</h2>' +
-        '<p class="card__lead">{名前} {URL} {内容} {メモ} は自動で置き換わります。{内容} は「クイズ案（2問）とボイメ」か「ボイメ」になります。</p>' +
+        '<p class="card__lead">{名前} {URL} {内容} {メモ} は自動で置き換わります。{内容} は「クイズ案（2問）とボイメ」「ボイメ」「CMの音源」のどれかになります。</p>' +
         TPL.map(function (t) {
           return '<div class="field"><label for="set-' + t[0] + '">' + t[1] + '</label><textarea class="textarea" id="set-' + t[0] + '" rows="7" maxlength="4000">' + esc(st['tpl_' + t[0]]) + '</textarea></div>';
         }).join('') +

@@ -19,7 +19,6 @@
   SV.isBlankChoice = isBlank;
   SV.quizOptHtml = optHtml;
   const DRAFT_DAYS = 14;
-  const MAX_FILES = 5;
 
   function tag(req) { return req ? '<span class="tag tag--req">必須</span>' : '<span class="tag tag--opt">任意</span>'; }
 
@@ -184,7 +183,7 @@
     const proxy = !!opts.guest;
     const guard = leaveGuard();
     const drafts = draftStore('quiz', !proxy);
-    const isQuizGuest = function (g) { return g.type !== 'B'; };
+    const isQuizGuest = function (g) { return g.type !== 'B' && g.type !== 'C'; };
     let draftTimer = 0;
 
     function qBlock(n) {
@@ -216,7 +215,7 @@
       (proxy ? proxyBanner(opts.guest) : '<p class="lead">クイズを2問ご提出ください。選択肢はA〜D（2択・3択も可）、正解を1つ選んでください。<br>入力した内容はこの端末に自動で保存されます。</p>') +
       '<div class="restore-box"></div>' +
       '<div class="notice notice--err form-err" role="alert" hidden></div>' +
-      (proxy ? '' : nameField(u, 'ボイメのみのご依頼の方は、クイズ案の提出は不要です。')) +
+      (proxy ? '' : nameField(u, 'ボイメのみ・CMのみのご依頼の方は、クイズ案の提出は不要です。')) +
       qBlock(1) + qBlock(2) +
       '<section class="card"><div class="field" data-f="note"><label for="' + u + '-note">備考・メッセージ ' + tag(false) + '</label>' +
         '<textarea class="textarea textarea--sm" id="' + u + '-note" maxlength="2000" placeholder="補足や、運営へのメッセージがあればどうぞ"></textarea></div></section>' +
@@ -264,6 +263,7 @@
     function saveDraftSoon() {
       clearTimeout(draftTimer);
       draftTimer = setTimeout(function () {
+        if (guard.done) return;   // already sent: never bring the draft back
         const d = collect();
         const flat = { guestId: d.guest ? d.guest.id : '', note: d.note };
         let any = !!(d.guest || d.note);
@@ -395,6 +395,7 @@
         SV.api('submitQuiz', { sid: sid, guestId: data.guest.id, questions: data.questions, note: data.note, pw: opts.pw }, { onRetry: ui.retrying })
           .then(function () {
             busy = false;
+            clearTimeout(draftTimer);
             drafts.clear();
             guard.release();
             if (opts.onSubmitted) opts.onSubmitted(data.guest, 'quiz');
@@ -428,14 +429,14 @@
     let draftTimer = 0;
 
     v.edit.innerHTML = '<form novalidate>' +
-      (proxy ? proxyBanner(opts.guest) : '<p class="lead">「自己紹介」と「クイズ」の音源をご提出ください。</p>') +
+      (proxy ? proxyBanner(opts.guest) : '<p class="lead voice-lead"></p>') +
       '<div class="restore-box"></div>' +
       '<div class="notice notice--err form-err" role="alert" hidden></div>' +
       (proxy ? '' : nameField(u, '')) +
       '<section class="card" data-f="audio"><h2 class="card__h">音源</h2>' +
         '<p class="card__lead">ここに直接入れるか、下のギガファイル便の欄にURLを入れてください。</p>' +
         (SV.isIOS ? voiceMemoHowto() : '') +
-        '<div data-slot="intro"></div><div data-slot="quiz"></div>' +
+        '<div data-slot="intro"></div><div data-slot="quiz"></div><div data-slot="cm"></div>' +
       '</section>' +
       '<section class="card"><h2 class="card__h">ギガファイル便で提出される方はこちら</h2>' +
         '<div class="field" data-f="giga"><label for="' + u + '-giga">ダウンロードページのURL ' + tag(false) + '</label>' +
@@ -447,28 +448,45 @@
       '<div class="actions"><button type="submit" class="btn btn--red btn--lg btn--block">入力内容を確認する</button></div>' +
     '</form>';
     const form = $('form', v.edit), formErr = $('.form-err', v.edit), gigaIn = $('#' + u + '-giga'), noteIn = $('#' + u + '-note');
-    const SLOTS = [{ slot: 'intro', label: '自己紹介', doneKey: 'intro' }, { slot: 'quiz', label: 'クイズ', doneKey: 'quizAudio' }];
+    // 自己紹介 1本・クイズ 5本まで（A/B のゲスト）／ CM 1本（C のゲスト）
+    const ALL = [
+      { slot: 'intro', label: '自己紹介', doneKey: 'intro', max: 1 },
+      { slot: 'quiz', label: 'クイズ', doneKey: 'quizAudio', max: 5 },
+      { slot: 'cm', label: 'CM', doneKey: 'cm', max: 1 },
+    ];
     const lists = {};
-    SLOTS.forEach(function (s) {
+    ALL.forEach(function (s) {
       lists[s.slot] = SV.audioList($('[data-slot="' + s.slot + '"]', v.edit), {
-        slot: s.slot, label: s.label + 'の音源', addLabel: s.label + 'の音源を追加する', required: !proxy, max: MAX_FILES,
+        slot: s.slot, label: s.label + 'の音源', addLabel: s.label + 'の音源を追加する', required: !proxy, max: s.max,
         onChange: function (f) {
           syncSummary(v.edit);
           if (f) guard.dirty = true;
         },
       });
     });
-    SV._zones = function () { return lists.intro.zones().concat(lists.quiz.zones()); };
 
     let guest = opts.guest || null;
+    let SLOTS = [];
+    const isCM = function () { return !!(guest && guest.type === 'C'); };
+    function layout() {
+      SLOTS = ALL.filter(function (s) { return isCM() ? s.slot === 'cm' : s.slot !== 'cm'; });
+      ALL.forEach(function (s) { lists[s.slot].show(SLOTS.indexOf(s) >= 0); });
+      const lead = $('.voice-lead', v.edit);
+      if (lead) {
+        lead.textContent = isCM() ? 'CMの音源をご提出ください。'
+          : '「自己紹介」と「クイズ」の音源をご提出ください。CMのご依頼の方は、お名前を選ぶとCMの欄に切り替わります。';
+      }
+    }
+    SV._zones = function () { return SLOTS.reduce(function (a, s) { return a.concat(lists[s.slot].zones()); }, []); };
     function showPrevious() {
+      layout();
       SLOTS.forEach(function (s) {
         const has = guest && guest.done && guest.done[s.doneKey];
         lists[s.slot].setPrevious(has ? '<p class="notice">提出済みの音源があります。差し替える場合だけ選んでください（選んだ音源で、前回分がまるごと差し替わります）。</p>' : '');
       });
       const box = $('.resub', v.edit);
       if (box) {
-        const any = guest && guest.done && (guest.done.intro || guest.done.quizAudio || guest.done.giga);
+        const any = guest && guest.done && (guest.done.intro || guest.done.quizAudio || guest.done.cm || guest.done.giga);
         box.hidden = !any;
         box.innerHTML = '<p class="notice">すでにボイメをご提出いただいています。差し替えたい音源だけ選んで送れば、その音源が最新版になります（前回分も運営側で保管しています）。</p>';
       }
@@ -484,9 +502,10 @@
     function saveDraftSoon() {
       clearTimeout(draftTimer);
       draftTimer = setTimeout(function () {
+        if (guard.done) return;   // already sent: never bring the draft back
         const g = picker.get(), giga = gigaIn.value.trim(), note = noteIn.value.trim();
         const any = !!(g || giga || note);
-        guard.dirty = any || !!(lists.intro.items().length || lists.quiz.items().length);
+        guard.dirty = any || SLOTS.some(function (s) { return lists[s.slot].items().length; });
         if (any) drafts.save({ guestId: g ? g.id : '', giga: giga, note: note }); else drafts.clear();
       }, 300);
     }
@@ -510,9 +529,11 @@
     }
 
     function collect() {
+      const files = { intro: [], quiz: [], cm: [] };
+      SLOTS.forEach(function (s) { files[s.slot] = lists[s.slot].items(); });   // only the fields shown for this guest
       return {
         guest: picker.get(),
-        files: { intro: lists.intro.items(), quiz: lists.quiz.items() },
+        files: files,
         giga: gigaIn.value.trim(),
         note: noteIn.value.trim(),
       };
@@ -529,8 +550,8 @@
       const done = (d.guest && d.guest.done) || {};
       const hasGiga = !!d.giga || !!done.giga;
       if (proxy) {
-        if (!d.files.intro.length && !d.files.quiz.length && !d.giga && !d.note) {
-          lists.intro.setErr('音源・ギガファイル便のURL・備考のどれかを入れてください');
+        if (!SLOTS.some(function (s) { return d.files[s.slot].length; }) && !d.giga && !d.note) {
+          lists[SLOTS[0].slot].setErr('音源・ギガファイル便のURL・備考のどれかを入れてください');
           n++;
         }
       } else {
@@ -578,9 +599,10 @@
     }
 
     function asText(d) {
-      return '【SVARAC ボイメ】\nお名前：' + d.guest.name +
-        '\n自己紹介の音源：' + (d.files.intro.length ? d.files.intro.map(function (it) { return it.file.name; }).join('、') : (d.giga ? 'ギガファイル便' : 'なし')) +
-        '\nクイズの音源：' + (d.files.quiz.length ? d.files.quiz.map(function (it) { return it.file.name; }).join('、') : (d.giga ? 'ギガファイル便' : 'なし')) +
+      return '【SVARAC ボイメ】\nお名前：' + d.guest.name + SLOTS.map(function (s) {
+        const l = d.files[s.slot];
+        return '\n' + s.label + 'の音源：' + (l.length ? l.map(function (it) { return it.file.name; }).join('、') : (d.giga ? 'ギガファイル便' : 'なし'));
+      }).join('') +
         (d.giga ? '\nギガファイル便：' + d.giga : '') + (d.note ? '\n備考：' + d.note : '');
     }
 
@@ -617,7 +639,7 @@
       });
       const total = todo.length + 1;
       ui.start(todo.length ? todo[0].label + 'を送信しています…（1/' + total + '）' : '送信しています…');
-      const ids = { intro: [], quiz: [] };
+      const ids = { intro: [], quiz: [], cm: [] };
       let chain = Promise.resolve();
       todo.forEach(function (t, i) {
         chain = chain.then(function () {
@@ -642,9 +664,10 @@
         return SV.api('submitVoice', body, { onRetry: ui.retrying });
       }).then(function () {
         busy = false;
+        clearTimeout(draftTimer);
         drafts.clear();
         guard.release();
-        if (opts.onSubmitted) opts.onSubmitted(data.guest, 'voice', { intro: !!ids.intro.length, quizAudio: !!ids.quiz.length, giga: !!data.giga });
+        if (opts.onSubmitted) opts.onSubmitted(data.guest, 'voice', { intro: !!ids.intro.length, quizAudio: !!ids.quiz.length, cm: !!ids.cm.length, giga: !!data.giga });
         doneView(v, proxy ? '代理入力で保存しました。' : 'ありがとうございます！<br>不備がある場合はご連絡します。', opts);
       }, function (err) {
         busy = false; guard.busy = false;
