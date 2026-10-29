@@ -408,6 +408,15 @@
     }
   };
 
+  /* iPhone: a web page can't open Voice Memos, so show the way through the Files app */
+  function voiceMemoHowto() {
+    return '<details class="howto" open><summary>iPhoneの「ボイスメモ」で録音した場合</summary><ol>' +
+      '<li>「ボイスメモ」で提出する録音をタップ →「…」→「共有」→「“ファイル”に保存」→ 保存先（「このiPhone内」など）を選んで「保存」</li>' +
+      '<li>このページに戻り、下の点線の枠をタップ →「ファイルを選択」</li>' +
+      '<li>「最近使った項目」から保存した録音を選ぶ（右上の「選択」で、まとめて選ぶこともできます）</li>' +
+      '</ol><p class="howto__note">「写真ライブラリ」「ビデオを撮る」は使いません。</p></details>';
+  }
+
   /* ================= ボイメ ================= */
   SV.VoiceFlow = function (root, opts) {
     const u = 'vm' + (++uidN);
@@ -425,6 +434,7 @@
       (proxy ? '' : nameField(u, '')) +
       '<section class="card" data-f="audio"><h2 class="card__h">音源</h2>' +
         '<p class="card__lead">ここに直接入れるか、下のギガファイル便の欄にURLを入れてください。</p>' +
+        (SV.isIOS ? voiceMemoHowto() : '') +
         '<div data-slot="intro"></div><div data-slot="quiz"></div>' +
       '</section>' +
       '<section class="card"><h2 class="card__h">ギガファイル便で提出される方はこちら</h2>' +

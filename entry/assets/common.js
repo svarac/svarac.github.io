@@ -13,6 +13,8 @@
   SV.apiUrl = cfg.api || '';
   SV.ready = /^https?:\/\//.test(SV.apiUrl) || SV.apiUrl.charAt(0) === '/';
   SV.MAX_BYTES = 30 * 1024 * 1024;
+  // iPhone / iPad (iPadOS reports itself as a Mac, so also check for touch)
+  SV.isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   SV.AUDIO_EXT = ['mp3', 'wav', 'm4a', 'aac', 'aif', 'aiff', 'flac', 'ogg', 'oga', 'opus', 'webm', 'mp4', 'caf', 'wma'];
 
   /* ---------- API ----------
@@ -256,8 +258,8 @@
       '<div class="drop__pick">' +
         '<input class="drop__input sr" type="file" id="' + id + '"' + (opts.multiple ? ' multiple' : '') + ' accept="audio/*,.mp3,.wav,.m4a,.aac,.aif,.aiff,.flac,.ogg,.opus,.caf">' +
         '<label class="drop__zone" for="' + id + '">' + SV.icon.note +
-          '<span class="drop__main">ここに音源をドラッグ＆ドロップ</span>' +
-          '<span class="drop__sub">またはタップしてファイルを選択<br>mp3・wav・m4a など／1本30MBまで</span>' +
+          '<span class="drop__main"><span class="only-mouse">ここに音源をドラッグ＆ドロップ</span><span class="only-touch">タップして音源を選ぶ</span></span>' +
+          '<span class="drop__sub"><span class="only-mouse">またはクリックしてファイルを選択<br></span>mp3・wav・m4a など／1本30MBまで</span>' +
         '</label>' +
       '</div>' +
       '<div class="drop__file" hidden>' +

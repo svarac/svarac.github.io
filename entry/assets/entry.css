@@ -224,3 +224,14 @@ a{color:var(--gold-hi);text-underline-offset:3px}
 .crash p{flex:1 1 240px}
 .boot-fail{max-width:640px;margin:var(--s4) auto;padding:20px 16px;border-radius:var(--radius);background:var(--raised);border:1px solid var(--rule);line-height:1.8}
 .confirm-audio + .confirm-audio{margin-top:14px}
+
+/* touch devices: "tap to choose" instead of drag & drop */
+.only-touch{display:none}
+@media (hover:none) and (pointer:coarse){.only-mouse{display:none}.only-touch{display:inline}}
+
+/* iPhone: how to hand in a Voice Memos recording */
+.howto{margin:0 0 var(--s2);padding:12px 14px;border:1px solid var(--rule);border-radius:var(--radius-ui);background:rgba(255,194,26,.06)}
+.howto summary{min-height:32px;display:flex;align-items:center;cursor:pointer;font-weight:700;color:var(--gold-hi)}
+.howto ol{margin:8px 0 0;padding-left:1.4em;font-size:.875rem;line-height:1.8}
+.howto li + li{margin-top:6px}
+.howto__note{margin-top:8px;font-size:.8125rem;color:var(--muted)}
