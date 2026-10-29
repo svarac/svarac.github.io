@@ -29,8 +29,8 @@ a{color:var(--gold-hi);text-underline-offset:3px}
 .head{display:flex;flex-direction:column;align-items:center;gap:var(--s2);padding:var(--s4) 16px var(--s3);text-align:center}
 .head__logo{width:min(56vw,240px)}
 .head__logo img{width:100%;height:auto}
-.head__title{font-family:var(--f-display);font-size:clamp(1.75rem,8vw,2.5rem);line-height:1.2;letter-spacing:.02em}
-.head__lead{font-weight:700;color:var(--muted)}
+.head__title{font-family:var(--f-latin);font-size:clamp(2rem,10vw,3.5rem);line-height:1;letter-spacing:-.01em;white-space:nowrap}
+.head__lead{max-width:30em;font-size:.875rem;line-height:1.8;color:var(--muted)}
 
 /* steps */
 .main{width:100%;max-width:calc(var(--w) + 32px);margin:0 auto;padding:0 16px var(--s4);display:grid;gap:var(--s4)}
@@ -104,9 +104,6 @@ a{color:var(--gold-hi);text-underline-offset:3px}
 .result__btns{width:100%;max-width:360px;display:grid;gap:12px}
 .result__btns .btn{width:100%}
 
-/* hashtag */
-.tag{padding:var(--s3) 16px;text-align:center;border:1px dashed var(--rule);border-radius:12px;font-weight:700}
-.tag b{font-family:var(--f-display);font-weight:400;color:var(--gold);font-size:1.125rem}
 
 .foot{padding:var(--s4) 16px var(--s5);border-top:1px solid var(--rule);display:flex;flex-direction:column;align-items:center;gap:var(--s3);text-align:center}
 .foot__top{min-height:48px;padding:10px 20px}
