@@ -61,7 +61,9 @@
     const cls = 'ava' + (big ? ' ava--lg' : '');
     if (g.icon && g.iconThumb) return '<span class="' + cls + '"><img src="' + esc(g.iconThumb) + '" alt=""></span>';
     if (g.icon) return '<span class="' + cls + '" title="アイコン登録済み">' + SV.icon.image + '</span>';
-    return '<span class="' + cls + ' ava--none" title="アイコン未登録">' + esc(String(g.name || '?').charAt(0)) + '</span>';
+    // first letter or digit of the name (names may start with an emoji or symbols)
+    const m = String(g.name || '').match(/[\p{Lu}\p{Ll}\p{Lt}\p{Lo}\p{Nd}]/u);
+    return '<span class="' + cls + ' ava--none" title="アイコン未登録">' + esc(m ? m[0] : '?') + '</span>';
   }
   /* small square preview for the list (kept in the sheet, so the list shows icons without loading every image) */
   function makeThumb(file) {
