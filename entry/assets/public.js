@@ -27,6 +27,17 @@
   const asksQuiz = function (g) { return g.type !== 'B' && g.type !== 'C'; };
   const byId = function (id) { return (guests || []).filter(function (g) { return g.id === id; })[0] || null; };
   const homeOf = function (g) { return asksQuiz(g) ? '#g/' + g.id : '#g/' + g.id + '/voice'; };
+  const isAdopted = function (g) { return !!(g.adopted && g.adopted.length); };
+  const adoptLabel = function (g) { return g.adopted.length > 1 ? '2問とも' : '第' + g.adopted[0] + '問'; };
+  const adoptedCache = {};
+  /* the adopted questions themselves (asked once per guest, only when needed) */
+  function getAdopted(g) {
+    if (!adoptedCache[g.id]) {
+      adoptedCache[g.id] = SV.api('adopted', { guestId: g.id }).then(function (r) { return r.adopted; })
+        .catch(function (err) { delete adoptedCache[g.id]; throw err; });
+    }
+    return adoptedCache[g.id];
+  }
 
   function load() {
     if (guests) return Promise.resolve(guests);
@@ -92,10 +103,13 @@
       '<div class="me me--big"><span class="me__label">お名前</span><b class="me__name">' + esc(g.name) + '</b><span>さん</span><a class="me__change" href="#">選び直す</a></div>' +
       '<p class="lead">提出するものを選んでください。</p>' +
       '<div class="menu__btns">' +
-        item('quiz', 'big--red', 'クイズ案提出', '2問・選択式（2〜4択）', d.quiz ? '提出済み' : '') +
+        (isAdopted(g)
+          ? item('quiz', 'big--red', '採用されたクイズ', adoptLabel(g) + 'が採用されました', '採用')
+          : item('quiz', 'big--red', 'クイズ案提出', '2問・選択式（2〜4択）', d.quiz ? '提出済み' : '')) +
         item('voice', 'big--gold', 'ボイメ提出', '自己紹介・クイズの音源', voiceAll ? '提出済み' : voiceSome ? '一部提出済み' : '') +
       '</div>' +
-      (d.quiz || voiceSome || d.giga ? '<p class="hint menu__hint">提出済みのものも、もう一度送ると最新の内容に差し替わります。</p>' : '');
+      (isAdopted(g) ? '<p class="hint menu__hint">クイズ案は採用が決まったため、提出を締め切りました。</p>' : '') +
+      ((d.quiz && !isAdopted(g)) || voiceSome || d.giga ? '<p class="hint menu__hint">提出済みのものも、もう一度送ると最新の内容に差し替わります。</p>' : '');
     menu.hidden = false;
   }
 
@@ -104,7 +118,7 @@
     if (!asksQuiz(g)) return [{ href: '#', label: 'トップに戻る' }];
     const d = g.done || {}, out = [];
     if (kind === 'quiz' && !((d.intro && d.quizAudio) || d.giga)) out.push({ href: '#g/' + g.id + '/voice', label: '続けてボイメを提出する', primary: true });
-    if (kind === 'voice' && !d.quiz) out.push({ href: '#g/' + g.id + '/quiz', label: '続けてクイズ案を提出する', primary: true });
+    if (kind === 'voice' && !d.quiz && !isAdopted(g)) out.push({ href: '#g/' + g.id + '/quiz', label: '続けてクイズ案を提出する', primary: true });
     out.push({ href: '#g/' + g.id, label: '提出メニューに戻る' });
     return out;
   }
@@ -114,6 +128,7 @@
       guest: g,
       guests: function () { return guests || []; },
       doneLinks: function (k) { return doneLinks(g, k); },
+      adopted: isAdopted(g) ? function () { return getAdopted(g); } : null,
       onSubmitted: function (sent, k, slots) {
         g.done = g.done || {};
         if (k === 'quiz') g.done.quiz = true;
@@ -129,7 +144,29 @@
     boxes[kind].innerHTML = '';
     delete flows[kind];
   }
+  /* adopted: the quiz form is closed, the adopted questions are shown instead */
+  function showAdopted(g) {
+    const box = boxes.quiz;
+    if (flows.quiz) drop('quiz');
+    box.innerHTML = '<div class="me"><span class="me__label">お名前</span><b class="me__name">' + esc(g.name) + '</b><span>さん</span><a class="me__change" href="#">選び直す</a></div>' +
+      '<div class="adopt-hero"><p class="adopt-hero__h">クイズ案が採用されました！</p><p>ご協力ありがとうございます。クイズ案の提出は締め切りました。</p></div>' +
+      '<section class="card"><h2 class="card__h">採用されたクイズ（' + adoptLabel(g) + '）</h2><div class="adopted-body"><div class="loading"><span class="spin"></span>読み込んでいます…</div></div></section>' +
+      '<p class="note">この問題の音源は「ボイメ提出」からお送りください。</p>' +
+      '<div class="actions"><a class="btn btn--red btn--lg btn--block" href="#g/' + esc(g.id) + '/voice">ボイメ提出へ</a>' +
+      '<a class="btn btn--line btn--lg btn--block" href="#g/' + esc(g.id) + '">提出メニューに戻る</a></div>';
+    box.hidden = false;
+    const body = $('.adopted-body', box);
+    getAdopted(g).then(function (a) {
+      body.innerHTML = a && a.questions && a.questions.length ? SV.adoptedHtml(a.questions)
+        : '<p class="notice">採用された内容を表示できませんでした。お手数ですが運営までお問い合わせください。</p>';
+    }, function (err) {
+      body.innerHTML = '<p class="notice notice--err">' + esc(err.message) + '</p>' +
+        '<div class="actions"><button type="button" class="btn btn--line btn--lg btn--block" data-act="retry">もう一度読み込む</button></div>';
+      $('[data-act="retry"]', body).addEventListener('click', function () { showAdopted(g); });
+    });
+  }
   function showForm(kind, g) {
+    if (kind === 'quiz' && isAdopted(g)) { showAdopted(g); return; }
     if (flows[kind] && flows[kind].gid !== g.id) drop(kind);   // another name was chosen meanwhile
     if (!flows[kind]) build(kind, g);
     boxes[kind].hidden = false;
@@ -184,7 +221,7 @@
     }
     if (!asksQuiz(g) && kind !== 'voice') { location.replace('#g/' + g.id + '/voice'); return; }
     if (!kind) { showMenu(g); return; }
-    if (asksQuiz(g)) setBar('#g/' + g.id, '戻る', title.textContent);
+    if (asksQuiz(g)) setBar('#g/' + g.id, '戻る', kind === 'quiz' && isAdopted(g) ? '採用されたクイズ' : title.textContent);
     showForm(kind, g);
   }
 

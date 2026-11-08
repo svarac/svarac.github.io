@@ -19,6 +19,16 @@
   }
   SV.isBlankChoice = isBlank;
   SV.quizOptHtml = optHtml;
+  /* adopted questions, read-only (unused "ー" choices left out) */
+  SV.adoptedHtml = function (list) {
+    return (list || []).map(function (q) {
+      const v = { ans: String(q.ans || '').toUpperCase() };
+      KEYS.forEach(function (k) { v[k] = q[k]; });
+      return '<div class="qv"><div class="qv__h"><span class="no">Q' + q.no + '</span>第' + q.no + '問</div>' +
+        '<p class="qv__text">' + esc(q.text) + '</p>' +
+        '<ul class="opts">' + KEYS.filter(function (k) { return !isBlank(v[k]); }).map(function (k) { return optHtml(v, k); }).join('') + '</ul></div>';
+    }).join('');
+  };
   const DRAFT_DAYS = 14;
 
   function tag(req) { return req ? '<span class="tag tag--req">必須</span>' : '<span class="tag tag--opt">任意</span>'; }
@@ -473,7 +483,7 @@
       '<section class="card" data-f="audio"><h2 class="card__h">音源</h2>' +
         '<p class="card__lead">ここに直接入れるか、下のギガファイル便の欄にURLを入れてください。</p>' +
         (SV.isIOS ? voiceMemoHowto() : '') +
-        '<div data-slot="intro"></div><div data-slot="quiz"></div><div data-slot="cm"></div>' +
+        '<div data-slot="intro"></div><div class="adopted-ref" hidden></div><div data-slot="quiz"></div><div data-slot="cm"></div>' +
       '</section>' +
       '<section class="card"><h2 class="card__h">ギガファイル便で提出される方はこちら</h2>' +
         '<div class="field" data-f="giga"><label for="' + u + '-giga">ダウンロードページのURL ' + tag(false) + '</label>' +
@@ -533,6 +543,17 @@
       onGuest: function (g) { guest = g; showPrevious(); saveDraftSoon(); },
     }), anyGuest);
     showPrevious();
+
+    // the quiz the show adopted from this guest's proposal: shown right above the quiz audio
+    if (opts.adopted && SLOTS.some(function (s) { return s.slot === 'quiz'; })) {
+      const ref = $('.adopted-ref', v.edit);
+      opts.adopted().then(function (a) {
+        if (!a || !a.questions || !a.questions.length) return;
+        ref.innerHTML = '<p class="adopted-ref__h">採用されたクイズ</p>' +
+          '<p class="adopted-ref__lead">' + (a.questions.length > 1 ? 'この2問' : 'この問題') + 'の音源を、下の「クイズの音源」でご提出ください。</p>' + SV.adoptedHtml(a.questions);
+        ref.hidden = false;
+      }, function () { /* the form works without it */ });
+    }
 
     gigaIn.addEventListener('input', function () { setFieldErr($('[data-f="giga"]', v.edit), ''); SLOTS.forEach(function (s) { if (gigaIn.value.trim()) lists[s.slot].setErr(''); }); syncSummary(v.edit); });
 

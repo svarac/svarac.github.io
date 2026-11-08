@@ -39,6 +39,12 @@
   function shortAt(at) { return at ? String(at).slice(5, 16) : ''; }
   function typeLabel(t) { return t === 'B' ? 'B ボイメのみ' : t === 'C' ? 'C CMのみ' : t === 'Z' ? 'Z スタッフ' : 'A クイズ案＋ボイメ'; }
   function asksQuiz(g) { return g.type !== 'B' && g.type !== 'C' && g.type !== 'Z'; }
+  /* adopted quiz questions: [1], [2] or [1, 2] (none: []) */
+  function adoptNos(g) {
+    if (!g.adoptQuiz) return [];
+    return String(g.adoptNos || '').split(/[^0-9]+/).map(Number).filter(function (n, i, a) { return (n === 1 || n === 2) && a.indexOf(n) === i; }).sort();
+  }
+  function adoptLabel(nos) { return nos.length === 2 ? '2問とも' : nos.length ? '第' + nos[0] + '問' : ''; }
   /* the audio fields a guest is asked for, plus any other kind they happen to have handed in (staff: only what was handed in) */
   function audioSlots(g) {
     const s = g.sum || {};
@@ -196,11 +202,13 @@
   function progChips(g) {
     const s = g.sum || {}, out = [];
     const chip = function (label, st) {
-      const cls = st === 'ok' ? 'pc--ok' : st === 'giga' ? 'pc--giga' : 'pc--no';
-      const mark = st === 'ok' ? '✓' : st === 'giga' ? 'ギガ' : '−';
+      const cls = st === 'ok' ? 'pc--ok' : st === 'giga' ? 'pc--giga' : st === 'adopt' ? 'pc--adopt' : 'pc--no';
+      const mark = st === 'ok' ? '✓' : st === 'giga' ? 'ギガ' : st === 'adopt' ? '★' : '−';
       return '<span class="pc ' + cls + '">' + mark + ' ' + label + '</span>';
     };
-    if (asksQuiz(g) || s.quizAt) out.push(chip('クイズ案', s.quizAt ? 'ok' : 'no'));
+    const an = adoptNos(g);
+    if (an.length) out.push(chip('クイズ採用（' + adoptLabel(an) + '）', 'adopt'));
+    else if (asksQuiz(g) || s.quizAt) out.push(chip('クイズ案', s.quizAt ? 'ok' : 'no'));
     const n = function (sl) { return sl && sl.files && sl.files.length > 1 ? ' ×' + sl.files.length : ''; };
     audioSlots(g).forEach(function (x) {
       out.push(chip((x[0] === 'quizAudio' ? 'クイズ音源' : x[1] === 'CM' ? 'CM音源' : x[1]) + n(x[2]), x[2] ? 'ok' : s.giga ? 'giga' : 'no'));
@@ -305,10 +313,10 @@
   }
   function defaultTpl(status) { return !status ? 'request' : status === '不備あり' ? 'ng' : status === 'OK' ? 'ok' : 'ok'; }
 
-  function quizBlock(r) {
+  function quizBlock(r, adopted) {
     return [1, 2].map(function (n) {
-      const p = 'q' + n, ans = r[p + 'ans'];
-      return '<div class="qv"><div class="qv__h"><span class="no">Q' + n + '</span>第' + n + '問</div>' +
+      const p = 'q' + n, ans = r[p + 'ans'], on = !!adopted && adopted.indexOf(n) >= 0;
+      return '<div class="qv' + (on ? ' qv--adopt' : '') + '"><div class="qv__h"><span class="no">Q' + n + '</span>第' + n + '問' + (on ? '<span class="adopt-pill">採用</span>' : '') + '</div>' +
         '<p class="qv__text">' + esc(r[p]) + '</p>' +
         '<ul class="opts">' + KEYS.map(function (k) {
           const q = { ans: ans };
@@ -354,7 +362,7 @@
         '<a class="btn btn--line btn--sm" href="#edit/' + esc(g.id) + '">編集</a></div>' +
         '<div class="d-tags"><span class="pill pill--type">' + typeLabel(g.type) + '</span>' + (g.date ? '<span class="pill">回 ' + esc(g.date) + '</span>' : '') +
           (g.open === false || String(g.open).toUpperCase() === 'FALSE' ? '<span class="pill pill--warn">受付停止中（候補に出ません）</span>' : '') + '</div>' +
-        '<div class="prog" style="margin-top:10px">' + progChips(g) + '</div>' +
+        '<div class="prog" id="d-prog" style="margin-top:10px">' + progChips(g) + '</div>' +
       '</section>' +
 
       '<section class="card" id="icon-card"><h2 class="card__h">アイコン画像</h2><div id="icon-body"></div></section>' +
@@ -470,16 +478,51 @@
       .then(function (det) {
         if (location.hash !== '#g/' + id) return;
         const qz = det.quizzes;
-        $('#quiz-body').innerHTML = qz.length
-          ? '<p class="meta">提出 ' + esc(qz[0].at) + '（' + esc(qz[0].by) + '）' + (qz.length > 1 ? '・' + qz.length + '回目の提出' : '') + '</p>' + quizBlock(qz[0]) +
-            '<div class="row"><button type="button" class="btn btn--line btn--sm" id="quiz-copy">テキストでコピー</button></div>' +
-            (qz.length > 1 ? '<details class="hist"><summary>過去の提出（' + (qz.length - 1) + '件）</summary>' + qz.slice(1).map(function (r) {
-              return '<div class="hist__item"><p class="meta">提出 ' + esc(r.at) + '（' + esc(r.by) + '）</p>' + quizBlock(r) + '</div>';
-            }).join('') + '</details>' : '')
-          : '<p class="empty">まだ提出されていません。</p>';
-        if ($('#quiz-copy')) $('#quiz-copy').addEventListener('click', function () {
-          copy(quizText(g, qz[0])).then(function () { SV.toast('クイズ案をコピーしました'); });
+        const quizBody = $('#quiz-body');
+        let adopting = false;
+        function drawQuiz() {
+          if (!qz.length) { quizBody.innerHTML = '<p class="empty">まだ提出されていません。</p>'; return; }
+          const nos = adoptNos(g), latest = qz[0];
+          const from = nos.length ? qz.filter(function (r) { return r.id === g.adoptQuiz; })[0] : null;
+          const onLatest = !!from && from.id === latest.id;
+          const same = function (a) { return onLatest && a.join() === nos.join(); };
+          quizBody.innerHTML =
+            '<p class="meta">提出 ' + esc(latest.at) + '（' + esc(latest.by) + '）' + (qz.length > 1 ? '・' + qz.length + '回目の提出' : '') + '</p>' +
+            (from && !onLatest ? '<p class="notice">採用中：' + esc(shortAt(from.at)) + ' 提出分の' + adoptLabel(nos) + '（下の「過去の提出」に印があります）</p>' : '') +
+            quizBlock(latest, onLatest ? nos : null) +
+            '<div class="adopt">' +
+              '<p class="adopt__h">' + (onLatest ? '採用中：<b>' + adoptLabel(nos) + '</b>' + (g.adoptAt ? '<span class="muted">（' + esc(shortAt(g.adoptAt)) + '）</span>' : '') : 'このクイズ案を採用する') + '</p>' +
+              '<div class="adopt__btns">' + [[[1], '第1問を採用'], [[2], '第2問を採用'], [[1, 2], '2問とも採用']].map(function (b) {
+                return '<button type="button" class="btn btn--sm ' + (same(b[0]) ? 'btn--gold' : 'btn--line') + '" data-adopt="' + b[0].join(',') + '" aria-pressed="' + same(b[0]) + '">' + b[1] + '</button>';
+              }).join('') + '</div>' +
+              (nos.length ? '<button type="button" class="linkbtn" data-adopt="">採用を取り消す</button>' : '') +
+              '<p class="hint">採用すると、このゲストのクイズ案の提出は締め切られ、提出ページ（クイズ案・ボイメの画面）に採用した問題が表示されます。</p>' +
+            '</div>' +
+            '<div class="row"><button type="button" class="btn btn--line btn--sm" data-act="quiz-copy">テキストでコピー</button></div>' +
+            (qz.length > 1 ? '<details class="hist"' + (from && !onLatest ? ' open' : '') + '><summary>過去の提出（' + (qz.length - 1) + '件）</summary>' + qz.slice(1).map(function (r) {
+              return '<div class="hist__item"><p class="meta">提出 ' + esc(r.at) + '（' + esc(r.by) + '）' + (from && r.id === from.id ? '・<b class="adopt-mark">採用中</b>' : '') + '</p>' + quizBlock(r, from && r.id === from.id ? nos : null) + '</div>';
+            }).join('') + '</details>' : '');
+        }
+        quizBody.addEventListener('click', function (e) {
+          if (e.target.closest('[data-act="quiz-copy"]')) {
+            copy(quizText(g, qz[0])).then(function () { SV.toast('クイズ案をコピーしました'); });
+            return;
+          }
+          const btn = e.target.closest('[data-adopt]');
+          if (!btn || adopting || btn.getAttribute('aria-pressed') === 'true') return;
+          const nos = btn.getAttribute('data-adopt').split(',').filter(Boolean).map(Number);
+          if (!nos.length && !window.confirm('採用を取り消しますか？\nゲストはまたクイズ案を提出できるようになります。')) return;
+          adopting = true;
+          $$('[data-adopt]', quizBody).forEach(function (b) { b.disabled = true; });
+          const label = btn.innerHTML;
+          btn.innerHTML = '<span class="spin"></span>' + label;
+          A('adoptQuiz', { id: g.id, quizId: qz[0].id, nos: nos }).then(function (r) {
+            ['adoptQuiz', 'adoptNos', 'adoptAt'].forEach(function (k) { g[k] = r.guest[k]; });
+            $('#d-prog').innerHTML = progChips(g);
+            SV.toast(nos.length ? adoptLabel(adoptNos(g)) + 'を採用しました' : '採用を取り消しました');
+          }, function (err) { SV.toast(err.message); }).finally(function () { adopting = false; drawQuiz(); });
         });
+        drawQuiz();
         const vs = det.voices;
         $('#voice-note').innerHTML = vs.length && vs[0].note ? '<div class="qnote"><b>備考・メッセージ（' + esc(shortAt(vs[0].at)) + '）</b>' + esc(vs[0].note) + '</div>' : '';
         $('#voice-hist').innerHTML = vs.length
@@ -715,6 +758,7 @@
           SV.QuizFlow(box, Object.assign(opts, { prefill: det.quizzes[0] || null }));
         }, function (err) { box.innerHTML = '<p class="notice notice--err">' + esc(err.message) + '</p>'; });
     } else {
+      if (adoptNos(g).length) opts.adopted = function () { return A('adopted', { guestId: g.id }).then(function (r) { return r.adopted; }); };
       SV.VoiceFlow(box, opts);
     }
   }

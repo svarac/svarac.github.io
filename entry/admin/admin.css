@@ -112,3 +112,16 @@
 #icon-card{transition:border-color .12s,background-color .12s}
 #icon-card.is-over{border-color:var(--gold);background:rgba(255,194,26,.07)}
 .danger-link{color:var(--err)}
+
+/* quiz adoption */
+.adopt{margin-top:var(--s3);padding:14px 16px;border-radius:var(--radius);background:rgba(255,194,26,.07);border:1px solid var(--rule)}
+.adopt__h{margin-bottom:10px;font-weight:700}
+.adopt__h b{color:var(--gold)}
+.adopt__h .muted{margin-left:6px;font-weight:400;font-size:.8125rem}
+.adopt__btns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.adopt .linkbtn{display:inline-block;min-height:32px;margin-bottom:6px}
+.adopt .hint{margin:0}
+.adopt-pill{margin-left:4px;padding:0 8px;border-radius:999px;background:var(--gold);color:var(--ink);font-size:.75rem;line-height:1.8}
+.qv--adopt .qv__text{color:var(--cream)}
+.adopt-mark{color:var(--gold)}
+.pc--adopt{background:rgba(255,194,26,.18);color:var(--gold-hi)}
