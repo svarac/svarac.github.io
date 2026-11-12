@@ -50,7 +50,7 @@
       const preview = String(e.preview || '');
       const n = [...preview.replace(/\n/g, '')].length;
       if (n > 100) console.warn(`第${e.no}回の予告文が100字を超えています（${n}字）`);
-      return { ...e, s, en, preview, guests: e.guests || [], quizGuests: (e.quizGuests || []).map((q) => (typeof q === 'string' ? q : q && q.name)).filter(Boolean) };
+      return { ...e, s, en, preview, guests: e.guests || [], quizGuests: (e.quizGuests || []).map((q) => (typeof q === 'string' ? { name: q } : q)).filter((q) => q && q.name) };
     });
     // promotion banners in the contents section; each disappears by itself at its "until" time
     const promos = (d.promos || []).filter((p) => p && p.until && !isNaN(Date.parse(p.until))).map((p) => ({
@@ -138,7 +138,8 @@
       : e.guestNote ? `${GL}<p class="guests__note">${esc(e.guestNote)}</p>` : '';
     // the question setters and CM guests: names only, set out like end credits across the full width
     const QL = '出題者・CMゲスト';
-    const quiz = e.quizGuests.length ? `<div class="quiz"><p class="next__label">${QL}<span class="quiz__count">${e.quizGuests.length}名</span></p><ul class="quiz__list">${e.quizGuests.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>`
+    const tile = (q) => `<li class="cast__item"><span class="cast__face" aria-hidden="true">${q.photo ? `<img src="${esc(q.photo)}" alt="" loading="lazy" decoding="async">` : `<span class="gold">${esc([...String(q.name)][0])}</span>`}</span><span class="cast__name">${esc(q.name)}</span></li>`;
+    const quiz = e.quizGuests.length ? `<div class="quiz"><p class="next__label">${QL}<span class="quiz__count">${e.quizGuests.length}名</span></p><ul class="cast">${e.quizGuests.map(tile).join('')}</ul></div>`
       : e.quizGuestsNote ? `<div class="quiz"><p class="next__label">${QL}</p><p class="guests__note">${esc(e.quizGuestsNote)}</p></div>` : '';
     const btns = st.onair
       ? (listen ? `<div class="btns"><a class="btn btn--lg btn--red" href="${esc(listen)}" target="_blank" rel="noopener">Spoonで聴く</a></div>` : '')
@@ -172,7 +173,7 @@
     $('archive-list').innerHTML = st.past.map((e) => `<li class="ep">
         <div class="ep__head"><p class="ep__no gold">#${pad(e.no || '')}</p><p class="ep__date">${ymd(e.s)}<small>（${dow(e.s)}）</small></p></div>
         ${e.guests.length ? `<p class="ep__guests">ゲスト（回答者）：${e.guests.map((g, i, a) => `<span class="nw">${esc(g.name)}${i < a.length - 1 ? '、' : ''}</span>`).join('')}</p>` : ''}
-        ${e.quizGuests.length ? `<p class="ep__quiz">出題者・CMゲスト：${e.quizGuests.map((n, i, a) => `<span class="nw">${esc(n)}${i < a.length - 1 ? '、' : ''}</span>`).join('')}</p>` : ''}
+        ${e.quizGuests.length ? `<p class="ep__quiz">出題者・CMゲスト：${e.quizGuests.map((q, i, a) => `<span class="nw">${esc(q.name)}${i < a.length - 1 ? '、' : ''}</span>`).join('')}</p>` : ''}
         ${e.preview ? `<p class="ep__preview">${prose(e.preview)}</p>` : ''}
       </li>`).join('');
   }
