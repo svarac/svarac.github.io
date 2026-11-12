@@ -35,8 +35,121 @@
       ],
       "preview": "初回にして大一番。4人のゲストの前に立ちはだかるのは、クイズマスター じゅえると多数の出題者たち。\nクリエイター総動員で挑むリスナー参加型クイズ大会「QUIZOON」を開催。\n霜月も暮れかかる夜、カオス極まる盛大な幕切れをご堪能あれ。",
       "spoon": "",
-      "quizGuests": [],
-      "quizGuestsNote": "近日公開"
+      "quizGuests": [
+        {
+          "name": "𝕒𝕚-𝕔𝕙𝕒𝕟",
+          "photo": "assets/img/cast/ai-chan.jpg"
+        },
+        {
+          "name": "あこまる",
+          "photo": "assets/img/cast/akomaru.jpg"
+        },
+        {
+          "name": "茨",
+          "photo": "assets/img/cast/ibara.jpg"
+        },
+        {
+          "name": "えび塩ゆず七味",
+          "photo": "assets/img/cast/ebishio.jpg"
+        },
+        {
+          "name": "おいやん",
+          "photo": "assets/img/cast/oiyan.jpg"
+        },
+        {
+          "name": "おむ",
+          "photo": "assets/img/cast/omu.jpg"
+        },
+        {
+          "name": "消しゴムはんこ",
+          "photo": "assets/img/cast/keshigomu-hanko.jpg"
+        },
+        {
+          "name": "Sachi",
+          "photo": "assets/img/cast/sachi.jpg"
+        },
+        {
+          "name": "皐月",
+          "photo": "assets/img/cast/satsuki.jpg",
+          "tag": "CM"
+        },
+        {
+          "name": "鯖の水煮缶",
+          "photo": "assets/img/cast/saba.jpg"
+        },
+        {
+          "name": "シビ",
+          "photo": "assets/img/cast/shibi.jpg"
+        },
+        {
+          "name": "すがこ",
+          "photo": "assets/img/cast/sugako.jpg"
+        },
+        {
+          "name": "橘りんね",
+          "photo": "assets/img/cast/tachibana-rinne.jpg"
+        },
+        {
+          "name": "たっくん",
+          "photo": "assets/img/cast/takkun.jpg"
+        },
+        {
+          "name": "ダー子"
+        },
+        {
+          "name": "ちゃちゃくん",
+          "photo": "assets/img/cast/chachakun.jpg"
+        },
+        {
+          "name": "月野むん",
+          "photo": "assets/img/cast/tsukino-mun.jpg"
+        },
+        {
+          "name": "🐯てっぺい(𝐾𝐼𝑁𝐷)きゅん。",
+          "photo": "assets/img/cast/teppei.jpg"
+        },
+        {
+          "name": "とと。",
+          "photo": "assets/img/cast/toto.jpg"
+        },
+        {
+          "name": "鳥飼あうる"
+        },
+        {
+          "name": "ひかる",
+          "photo": "assets/img/cast/hikaru.jpg",
+          "tag": "CM"
+        },
+        {
+          "name": "ふき",
+          "photo": "assets/img/cast/fuki.jpg"
+        },
+        {
+          "name": "🥦ますお🥦",
+          "photo": "assets/img/cast/masuo.jpg"
+        },
+        {
+          "name": "凛音",
+          "photo": "assets/img/cast/rinon.jpg"
+        },
+        {
+          "name": "りら",
+          "photo": "assets/img/cast/rira.jpg"
+        },
+        {
+          "name": "𝚁𝙰𝚈",
+          "photo": "assets/img/cast/ray.jpg"
+        },
+        {
+          "name": "六本木",
+          "photo": "assets/img/cast/roppongi.jpg"
+        },
+        {
+          "name": "WANNA HEY!",
+          "photo": "assets/img/cast/wannahey.jpg",
+          "tag": "CM"
+        }
+      ]
     }
   ],
   "staff": [

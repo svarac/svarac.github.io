@@ -136,9 +136,9 @@
     const GL = '<p class="next__label">ゲスト<span class="next__label-sub">（回答者）</span></p>';
     const guests = e.guests.length ? `${GL}<ul class="guests">${e.guests.map((g) => `<li class="guest"><span class="guest__who">${face(g)}<span class="guest__name">${esc(g.name)}</span></span>${linkBtns(g)}</li>`).join('')}</ul>`
       : e.guestNote ? `${GL}<p class="guests__note">${esc(e.guestNote)}</p>` : '';
-    // the question setters and CM guests: names only, set out like end credits across the full width
+    // the question setters and CM guests: icon + name tiles across the full width; a "tag" (e.g. "CM") shows as a small badge
     const QL = '出題者・CMゲスト';
-    const tile = (q) => `<li class="cast__item"><span class="cast__face" aria-hidden="true">${q.photo ? `<img src="${esc(q.photo)}" alt="" loading="lazy" decoding="async">` : `<span class="gold">${esc([...String(q.name)][0])}</span>`}</span><span class="cast__name">${esc(q.name)}</span></li>`;
+    const tile = (q) => `<li class="cast__item${q.tag ? ' has-tag' : ''}"><span class="cast__face" aria-hidden="true">${q.photo ? `<img src="${esc(q.photo)}" alt="" loading="lazy" decoding="async">` : `<span class="gold">${esc([...String(q.name)][0])}</span>`}</span>${q.tag ? `<span class="cast__tag">${esc(q.tag)}</span>` : ''}<span class="cast__name">${esc(q.name)}</span></li>`;
     const quiz = e.quizGuests.length ? `<div class="quiz"><p class="next__label">${QL}<span class="quiz__count">${e.quizGuests.length}名</span></p><ul class="cast">${e.quizGuests.map(tile).join('')}</ul></div>`
       : e.quizGuestsNote ? `<div class="quiz"><p class="next__label">${QL}</p><p class="guests__note">${esc(e.quizGuestsNote)}</p></div>` : '';
     const btns = st.onair
@@ -173,7 +173,7 @@
     $('archive-list').innerHTML = st.past.map((e) => `<li class="ep">
         <div class="ep__head"><p class="ep__no gold">#${pad(e.no || '')}</p><p class="ep__date">${ymd(e.s)}<small>（${dow(e.s)}）</small></p></div>
         ${e.guests.length ? `<p class="ep__guests">ゲスト（回答者）：${e.guests.map((g, i, a) => `<span class="nw">${esc(g.name)}${i < a.length - 1 ? '、' : ''}</span>`).join('')}</p>` : ''}
-        ${e.quizGuests.length ? `<p class="ep__quiz">出題者・CMゲスト：${e.quizGuests.map((q, i, a) => `<span class="nw">${esc(q.name)}${i < a.length - 1 ? '、' : ''}</span>`).join('')}</p>` : ''}
+        ${e.quizGuests.length ? `<p class="ep__quiz">出題者・CMゲスト：${e.quizGuests.map((q, i, a) => `<span class="nw">${esc(q.name)}${q.tag ? `（${esc(q.tag)}）` : ''}${i < a.length - 1 ? '、' : ''}</span>`).join('')}</p>` : ''}
         ${e.preview ? `<p class="ep__preview">${prose(e.preview)}</p>` : ''}
       </li>`).join('');
   }
