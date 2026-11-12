@@ -14,22 +14,22 @@
       "guests": [
         {
           "name": "詩",
-          "photo": "assets/img/guests/uta.jpg",
+          "photo": "assets/img/guests/uta.jpg?v=2",
           "x": "https://x.com/utashi__sp"
         },
         {
           "name": "ｷﾀﾆﾎｲﾔ",
-          "photo": "assets/img/guests/hoiya.jpg",
+          "photo": "assets/img/guests/hoiya.jpg?v=2",
           "x": "https://x.com/hOi_618"
         },
         {
           "name": "そうめん",
-          "photo": "assets/img/guests/somen.jpg",
+          "photo": "assets/img/guests/somen.jpg?v=2",
           "x": "https://x.com/sowomen_sp"
         },
         {
           "name": "viva",
-          "photo": "assets/img/guests/viva.jpg",
+          "photo": "assets/img/guests/viva.jpg?v=2",
           "x": "https://x.com/viva_tanoC"
         }
       ],

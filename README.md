@@ -18,7 +18,7 @@
   "start": "2026-11-21T21:00:00+09:00",
   "end": "2026-11-21T22:30:00+09:00",
   "guests": [
-    { "name": "ゲストの名前", "photo": "assets/img/guests/名前.jpg", "x": "https://x.com/…", "spoon": "https://…" }
+    { "name": "ゲストの名前", "photo": "assets/img/guests/name.jpg" }
   ],
   "guestNote": "後日発表",
   "quizGuests": [{ "name": "名前", "photo": "assets/img/cast/name.jpg" }, { "name": "CMの人", "photo": "assets/img/cast/cm.jpg", "tag": "CM" }, "名前だけでもOK"],
@@ -29,7 +29,7 @@
 ```
 
 - `end` を省くと、`defaultDurationMinutes`（分）の長さで終わる扱いになります。終了時刻は表示されません
-- `guests` の `photo` は正方形の画像。名前の左に小さな丸で出ます（省くと名前の1文字目）
+- `guests` は「ゲスト回答者」の一覧。「出題者・CMゲスト」と同じ丸アイコン＋名前のタイルで、その上に並びます（`photo` は顔が真ん中に来る正方形。省くと名前の1文字目）。X などのリンクは表示しません
 - `quizGuests` は「出題者・CMゲスト」の一覧。小さな丸アイコンと名前のタイルで、次回の配信の下に全幅で並べます（アイコンがない人は名前の1文字目）。`tag` を付けるとアイコンの下に小さなラベル（例：CM）が付きます。並びは五十音順（読み）で入れます。配信後も「これまでの配信」に名前が残ります
 - `quizGuestsNote` は、名前を出す前に「出題者・CMゲスト」欄へ出す一言（例：近日公開）
 - `guestNote` は、ゲストの名前を出す前にゲスト欄へ出す一言（例：後日発表）。`guests` に名前が入ると、そちらが優先されます

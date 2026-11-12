@@ -131,21 +131,18 @@
               <span class="count__unit"><b class="gold" id="cd-m">00</b><span>分</span></span>
               <span class="count__unit"><b class="gold" id="cd-s">00</b><span>秒</span></span></div></div>`}
       </div>`;
-    // before the guests are announced, guestNote (e.g. 後日発表) stands in for the list
-    const face = (g) => `<span class="guest__photo" aria-hidden="true">${g.photo ? `<img src="${esc(g.photo)}" alt="" loading="lazy">` : `<span class="gold">${esc([...String(g.name || '？')][0])}</span>`}</span>`;
-    const GL = '<p class="next__label">ゲスト<span class="next__label-sub">（回答者）</span></p>';
-    const guests = e.guests.length ? `${GL}<ul class="guests">${e.guests.map((g) => `<li class="guest"><span class="guest__who">${face(g)}<span class="guest__name">${esc(g.name)}</span></span>${linkBtns(g)}</li>`).join('')}</ul>`
-      : e.guestNote ? `${GL}<p class="guests__note">${esc(e.guestNote)}</p>` : '';
-    // the question setters and CM guests: icon + name tiles across the full width; a "tag" (e.g. "CM") shows as a small badge
-    const QL = '出題者・CMゲスト';
-    const tile = (q) => `<li class="cast__item${q.tag ? ' has-tag' : ''}"><span class="cast__face" aria-hidden="true">${q.photo ? `<img src="${esc(q.photo)}" alt="" loading="lazy" decoding="async">` : `<span class="gold">${esc([...String(q.name)][0])}</span>`}</span>${q.tag ? `<span class="cast__tag">${esc(q.tag)}</span>` : ''}<span class="cast__name">${esc(q.name)}</span></li>`;
-    const quiz = e.quizGuests.length ? `<div class="quiz"><p class="next__label">${QL}<span class="quiz__count">${e.quizGuests.length}名</span></p><ul class="cast">${e.quizGuests.map(tile).join('')}</ul></div>`
-      : e.quizGuestsNote ? `<div class="quiz"><p class="next__label">${QL}</p><p class="guests__note">${esc(e.quizGuestsNote)}</p></div>` : '';
+    // the line-up under the next stream: ゲスト回答者, then 出題者・CMゲスト, both as icon + name tiles across the full width.
+    // a "tag" (e.g. "CM") shows as a small badge; before names are out, the note (e.g. 後日発表 / 近日公開) stands in for the list
+    const tile = (q) => `<li class="cast__item${q.tag ? ' has-tag' : ''}"><span class="cast__face" aria-hidden="true">${q.photo ? `<img src="${esc(q.photo)}" alt="" loading="lazy" decoding="async">` : `<span class="gold">${esc([...String(q.name || '？')][0])}</span>`}</span>${q.tag ? `<span class="cast__tag">${esc(q.tag)}</span>` : ''}<span class="cast__name">${esc(q.name)}</span></li>`;
+    const roll = (label, list, note) => list.length ? `<div class="roll"><p class="next__label">${label}<span class="roll__count">${list.length}名</span></p><ul class="cast">${list.map(tile).join('')}</ul></div>`
+      : note ? `<div class="roll"><p class="next__label">${label}</p><p class="guests__note">${esc(note)}</p></div>` : '';
+    const rolls = roll('ゲスト回答者', e.guests, e.guestNote) + roll('出題者・CMゲスト', e.quizGuests, e.quizGuestsNote);
+    const lineup = rolls ? `<div class="lineup">${rolls}</div>` : '';
     const btns = st.onair
       ? (listen ? `<div class="btns"><a class="btn btn--lg btn--red" href="${esc(listen)}" target="_blank" rel="noopener">Spoonで聴く</a></div>` : '')
       : `<div class="btns"><a class="btn btn--lg btn--red" href="${cal.google}" target="_blank" rel="noopener">Googleカレンダーに追加</a>
           <a class="btn btn--lg btn--line" href="${cal.ics}">iPhoneなどのカレンダーに追加</a></div>`;
-    box.innerHTML = left + `<div>${guests}${e.preview ? `<p class="next__preview">${prose(e.preview)}</p>` : ''}${btns}</div>${quiz}`;
+    box.innerHTML = left + `<div>${e.preview ? `<p class="next__preview">${prose(e.preview)}</p>` : ''}${btns}</div>${lineup}`;
     tick();
   }
   // the arrow buttons only appear when there are more people than fit in the row
