@@ -46,5 +46,19 @@
       "x": "https://x.com/Maya_spoon0710",
       "spoon": "https://www.spooncast.net/jp/@vyo10jjl"
     }
+  ],
+  "promos": [
+    {
+      "label": "注目企画",
+      "title": "匙の格付けチェック",
+      "by": "☼★消しゴムはんこ 枠",
+      "start": "2026-11-28T18:30:00+09:00",
+      "until": "2026-11-28T20:00:00+09:00",
+      "logo": "assets/img/promo/kakuzuke_logo.png",
+      "flyer": "assets/img/promo/kakuzuke_flyer.jpg",
+      "flyerAlt": "「匙の格付けチェック」のフライヤー。2026.11.28 18:30 OA、☼★消しゴムはんこ 枠。挑戦者の一覧とMC・消しゴムはんこのイラスト",
+      "url": "https://x.com/keshihan_spoon",
+      "linkLabel": "企画主（消しゴムはんこ）のXを見る"
+    }
   ]
 }

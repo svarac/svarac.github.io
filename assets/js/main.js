@@ -52,7 +52,11 @@
       if (n > 100) console.warn(`第${e.no}回の予告文が100字を超えています（${n}字）`);
       return { ...e, s, en, preview, guests: e.guests || [], quizGuests: (e.quizGuests || []).map((q) => (typeof q === 'string' ? q : q && q.name)).filter(Boolean) };
     });
-    return { ...d, eps, staff: d.staff || [], links: d.links || {} };
+    // promotion banners in the contents section; each disappears by itself at its "until" time
+    const promos = (d.promos || []).filter((p) => p && p.until && !isNaN(Date.parse(p.until))).map((p) => ({
+      ...p, s: p.start ? Date.parse(p.start) : NaN, f: p.from ? Date.parse(p.from) : -Infinity, u: Date.parse(p.until),
+    }));
+    return { ...d, eps, staff: d.staff || [], links: d.links || {}, promos };
   }
   function split(now) {
     const next = DATA.eps.filter((e) => e.en > now).sort((a, b) => a.s - b.s)[0] || null;
@@ -177,13 +181,31 @@
     $('menu-links').innerHTML = $('foot-links').innerHTML;
     $('year').textContent = parts(Date.now()).year;
   }
+  const livePromos = (now) => DATA.promos.map((p, i) => ({ p, i })).filter(({ p }) => now >= p.f && now < p.u);
+  function renderPromos(now) {
+    const live = livePromos(now), box = $('promos');
+    box.hidden = !live.length;
+    box.innerHTML = live.map(({ p, i }) => `<button type="button" class="banner banner--promo" data-promo="${i}" aria-haspopup="dialog">
+        <span class="banner__art">${p.logo ? `<img src="${esc(p.logo)}" alt="" loading="lazy">` : ''}</span>
+        <span class="banner__body">
+          <span class="banner__tag">${esc(p.label || '注目企画')}</span>
+          ${isNaN(p.s) ? '' : `<span class="banner__when"><span class="nw"><b class="gold">${md(p.s)}</b>（${dow(p.s)}）</span><span class="nw">${hm(p.s)}〜</span></span>`}
+          <span class="banner__title">${prose(p.title || '')}</span>
+          ${p.by ? `<span class="banner__by">${prose(p.by)}</span>` : ''}
+          <span class="banner__more">${p.flyer ? 'フライヤーを見る' : '詳しく見る'}<span class="banner__arrow" aria-hidden="true">＋</span></span>
+        </span>
+      </button>`).join('');
+    const dlg = $('flyer');
+    if (dlg.open && !live.some(({ i }) => String(i) === dlg.dataset.promo)) dlg.close();   // it ended while open
+  }
   function syncMenu() { document.querySelectorAll('.menu__list li[data-for]').forEach((li) => { li.hidden = $(li.dataset.for).hidden; }); }
   function render(force) {
     const st = split(Date.now());
-    const key = `${st.next ? st.next.s : '-'}|${st.onair}|${st.past.length}`;
+    const now = Date.now();
+    const key = `${st.next ? st.next.s : '-'}|${st.onair}|${st.past.length}|${livePromos(now).map((x) => x.i).join(',')}`;
     if (!force && key === STATE) return false;
     STATE = key;
-    renderTop(st); renderNext(st); renderArchive(st); syncMenu();
+    renderTop(st); renderNext(st); renderArchive(st); renderPromos(now); syncMenu();
     return true;
   }
   function tick() {
@@ -302,6 +324,27 @@
     window.scrollTo({ top, behavior: REDUCE ? 'auto' : 'smooth' });
     if (id !== 'top') { el.setAttribute('tabindex', '-1'); el.focus({ preventScroll: true }); }
   });
+
+  // ---------- the flyer pop-up ----------
+  let opener = null;
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-promo]');
+    if (!b) return;
+    const p = DATA.promos[Number(b.dataset.promo)];
+    if (!p) return;
+    const dlg = $('flyer');
+    if (!p.flyer || typeof dlg.showModal !== 'function') { if (p.url) window.open(p.url, '_blank', 'noopener'); return; }
+    opener = b;
+    dlg.dataset.promo = b.dataset.promo;
+    $('flyer-h').textContent = p.title || 'フライヤー';
+    const img = $('flyer-img'); img.src = p.flyer; img.alt = p.flyerAlt || `${p.title || ''}のフライヤー`;
+    const a = $('flyer-link'); a.hidden = !p.url; if (p.url) { a.href = p.url; a.textContent = p.linkLabel || '企画主のページを見る'; }
+    root.classList.add('is-modal');
+    dlg.showModal();
+  });
+  $('flyer-close').addEventListener('click', () => $('flyer').close());
+  $('flyer').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });   // tap outside the flyer
+  $('flyer').addEventListener('close', () => { root.classList.remove('is-modal'); if (opener) opener.focus({ preventScroll: true }); opener = null; });
 
   async function boot() {
     let raw;

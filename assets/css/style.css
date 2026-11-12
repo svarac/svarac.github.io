@@ -219,17 +219,50 @@ main{position:relative;z-index:1}
   .is-scrollable:not(.at-end) > .staff{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent)}
 }
 
-/* ---------- contents: links to the fan pages ---------- */
-.contents{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:var(--s2)}
-.contents__link{display:inline-flex;align-items:center;gap:18px;min-height:48px;padding:0 18px 0 20px;border:1px solid var(--rule);border-radius:var(--radius-ui);
-  background:linear-gradient(180deg,rgba(255,194,26,.07),rgba(255,194,26,0));color:var(--cream);text-decoration:none;
-  font-weight:700;font-size:.875rem;line-height:1;letter-spacing:.12em;transition:border-color .2s,background-color .2s}
-.contents__arrow{color:var(--gold);letter-spacing:0;transition:transform .2s}
+/* ---------- contents: banners, side by side ---------- */
+.banners{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s2);max-width:760px}
+.banners__promos{display:contents}
+.banners__promos[hidden]{display:none}
+.banner{display:flex;flex-direction:column;min-width:0;padding:0;margin:0;border:1px solid var(--rule);border-radius:var(--radius-ui);overflow:hidden;
+  background:var(--raised);color:var(--cream);font:inherit;text-align:left;text-decoration:none;cursor:pointer;
+  transition:transform .25s cubic-bezier(.2,1,.3,1),border-color .2s,box-shadow .25s}
+.banner__art{position:relative;display:grid;place-items:center;aspect-ratio:16/10;overflow:hidden}
+.banner__art img{position:absolute;inset:0;width:100%;height:100%;padding:7% 8%;box-sizing:border-box;object-fit:contain;transition:transform .35s cubic-bezier(.2,1,.3,1)}
+.banner--promo .banner__art{background:radial-gradient(120% 95% at 50% 25%,#8E2232 0,#5F1622 55%,#360910 100%)}
+.banner--promo .banner__art::after{content:"";position:absolute;inset:8px;border:1px solid rgba(255,194,26,.45);border-radius:4px;pointer-events:none}
+.banner--ring .banner__art{background:radial-gradient(ellipse 80% 60% at 50% -5%,rgba(255,214,120,.28),transparent 70%),radial-gradient(ellipse 90% 60% at 50% 115%,rgba(122,9,16,.75),transparent 70%),var(--ink)}
+.banner--ring .banner__art img{padding:5%}
+.banner__body{flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px 14px 14px}
+.banner__tag{padding:3px 8px 2px;border-radius:4px;background:var(--gold);color:var(--ink);font-weight:700;font-size:.75rem;line-height:1.4;letter-spacing:.06em}
+.banner--promo .banner__tag{background:var(--red-lo);color:var(--cream)}
+.banner__when{font-size:.8125rem;line-height:1.5;color:var(--muted)}
+.banner__when b{font-family:var(--f-latin);font-weight:400;font-size:1.0625rem;letter-spacing:.02em;margin-right:1px}
+.banner__title{font-weight:700;font-size:1rem;line-height:1.5}
+.banner__by{font-size:.75rem;line-height:1.5;color:var(--muted)}
+.banner__more{margin-top:auto;padding-top:8px;font-weight:700;font-size:.8125rem;letter-spacing:.06em;color:var(--gold)}
+.banner__arrow{display:inline-block;margin-left:.5em;transition:transform .2s}
 @media (hover:hover){
-  .contents__link:hover{border-color:var(--gold);background-color:rgba(255,194,26,.06)}
-  .contents__link:hover span:first-child{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px}
-  .contents__link:hover .contents__arrow{transform:translateX(4px)}
+  .banner:hover{border-color:var(--gold);transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.45)}
+  .banner:hover .banner__art img{transform:scale(1.04)}
+  .banner:hover .banner__arrow{transform:translateX(4px)}
+  .banner:hover .banner__more{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px}
 }
+@media (min-width:760px){.banners{gap:var(--s3)}.banner__body{padding:16px 18px 18px}.banner__title{font-size:1.0625rem}}
+@media (max-width:380px){.banner__body{padding:10px 10px 12px}.banner__title{font-size:.875rem}.banner__when b{font-size:.9375rem}}
+
+/* the flyer pops up over the page */
+.flyer{width:min(92vw,480px);max-width:none;max-height:none;padding:0;border:0;background:transparent;color:var(--cream);overflow:visible}
+.flyer::backdrop{background:rgba(10,6,7,.88);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.flyer__in{position:relative;display:flex;flex-direction:column;align-items:center;gap:var(--s2)}
+.flyer[open] .flyer__in{animation:flyer-in .4s cubic-bezier(.2,1,.3,1) both}
+@keyframes flyer-in{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+.flyer__img{display:block;width:auto;max-width:100%;max-height:calc(100dvh - 150px);border-radius:var(--radius-ui);box-shadow:0 24px 64px rgba(0,0,0,.6)}
+.flyer__link{width:100%;max-width:420px}
+.flyer__close{position:absolute;top:-14px;right:-10px;z-index:1;width:48px;height:48px;display:grid;place-items:center;border-radius:50%;
+  border:1px solid var(--rule);background:var(--ink);color:var(--cream);cursor:pointer}
+.flyer__close svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+html.is-modal{overflow:hidden}
+@media (prefers-reduced-motion:reduce){.banner,.banner__art img,.banner__arrow{transition:none}.flyer[open] .flyer__in{animation:none}}
 
 /* ---------- archive: a timeline that draws itself ---------- */
 .timeline{position:relative;padding-left:var(--s4)}

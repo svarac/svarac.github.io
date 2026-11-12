@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Dela+Gothic+One&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20261030b">
+<link rel="stylesheet" href="assets/css/style.css?v=20261112">
 </head>
 <body>
 <a class="skip" href="#next">本文へ移動</a>
@@ -113,9 +113,18 @@
 
   <section class="sec" id="contents" aria-labelledby="contents-h">
     <div class="sec__head"><img src="assets/img/emblem.svg" alt="" width="18" height="31"><h2 id="contents-h">コンテンツ</h2><i class="sec__rule" aria-hidden="true"></i></div>
-    <ul class="contents">
-      <li><a class="contents__link" href="ring/"><span>アイコンリングを付ける</span><span class="contents__arrow" aria-hidden="true">→</span></a></li>
-    </ul>
+    <div class="banners">
+      <div class="banners__promos" id="promos" hidden></div>
+      <a class="banner banner--ring" href="ring/">
+        <span class="banner__art"><img src="assets/img/promo/ring_banner.png" alt="" width="520" height="520" loading="lazy"></span>
+        <span class="banner__body">
+          <span class="banner__tag">アイコンリング</span>
+          <span class="banner__title"><span class="nw">リングをつけて、</span><span class="nw">一緒に</span><span class="nw">盛り上げよう！</span></span>
+          <span class="banner__by"><span class="nw">X・Spoonの</span><span class="nw">アイコンに付けられます</span></span>
+          <span class="banner__more">リングを付ける<span class="banner__arrow" aria-hidden="true">→</span></span>
+        </span>
+      </a>
+    </div>
   </section>
 
   <section class="sec" id="archive" aria-labelledby="archive-h" hidden>
@@ -146,11 +155,20 @@
   </section>
 </main>
 
+<dialog class="flyer" id="flyer" aria-labelledby="flyer-h">
+  <div class="flyer__in">
+    <h2 class="sr" id="flyer-h"></h2>
+    <button type="button" class="flyer__close" id="flyer-close" aria-label="閉じる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <img class="flyer__img" id="flyer-img" alt="">
+    <a class="btn btn--lg btn--red flyer__link" id="flyer-link" target="_blank" rel="noopener"></a>
+  </div>
+</dialog>
+
 <footer class="foot">
   <p class="foot__links" id="foot-links"></p>
   <p class="foot__copy">© <span id="year">2026</span> SVARAC</p>
 </footer>
 
-<script src="assets/js/main.js?v=20261028b" defer></script>
+<script src="assets/js/main.js?v=20261112" defer></script>
 </body>
 </html>
