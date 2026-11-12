@@ -11,8 +11,28 @@
       "no": 1,
       "start": "2026-11-28T21:00:00+09:00",
       "end": "2026-11-28T23:00:00+09:00",
-      "guests": [],
-      "guestNote": "後日発表",
+      "guests": [
+        {
+          "name": "詩",
+          "photo": "assets/img/guests/uta.jpg",
+          "x": "https://x.com/utashi__sp"
+        },
+        {
+          "name": "ｷﾀﾆﾎｲﾔ",
+          "photo": "assets/img/guests/hoiya.jpg",
+          "x": "https://x.com/hOi_618"
+        },
+        {
+          "name": "そうめん",
+          "photo": "assets/img/guests/somen.jpg",
+          "x": "https://x.com/sowomen_sp"
+        },
+        {
+          "name": "viva",
+          "photo": "assets/img/guests/viva.jpg",
+          "x": "https://x.com/viva_tanoC"
+        }
+      ],
       "preview": "初回にして大一番。4人のゲストの前に立ちはだかるのは、クイズマスター じゅえると多数の出題者たち。\nクリエイター総動員で挑むリスナー参加型クイズ大会「QUIZOON」を開催。\n霜月も暮れかかる夜、カオス極まる盛大な幕切れをご堪能あれ。",
       "spoon": ""
     }
