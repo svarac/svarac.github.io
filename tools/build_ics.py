@@ -54,7 +54,7 @@ def main():
         end = datetime.datetime.fromisoformat(ep['end']) if ep.get('end') else start + duration
         title = ep.get('calendarTitle') or data.get('calendarTitle') or 'SVARAC（スバラシー）'
         guests = ep.get('guests') or []
-        who = ('ゲスト：' + '、'.join(g['name'] for g in guests)) if guests else (('ゲスト：' + ep['guestNote']) if ep.get('guestNote') else '')
+        who = ('ゲスト（回答者）：' + '、'.join(g['name'] for g in guests)) if guests else (('ゲスト（回答者）：' + ep['guestNote']) if ep.get('guestNote') else '')
         details = '\n'.join(x for x in [ep.get('preview', ''), who, 'Spoonで配信', SITE] if x)
         lines = [
             'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SVARAC//LP//JA', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',

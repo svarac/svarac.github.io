@@ -5,7 +5,7 @@ CALSCALE:GREGORIAN
 METHOD:PUBLISH
 BEGIN:VEVENT
 UID:svarac-1@svarac.github.io
-DTSTAMP:20261112T093522Z
+DTSTAMP:20261112T094017Z
 DTSTART:20261128T120000Z
 DTEND:20261128T140000Z
 SUMMARY:SVARAC@Kent枠
@@ -13,9 +13,9 @@ DESCRIPTION:初回にして大一番。4人のゲストの前に立ちは
  だかるのは、クイズマスター じゅえると多数の出題者
  たち。\nクリエイター総動員で挑むリスナー参加型クイ
  ズ大会「QUIZOON」を開催。\n霜月も暮れかかる夜、カオ
- ス極まる盛大な幕切れをご堪能あれ。\nゲスト：詩、ｷ
- ﾀﾆﾎｲﾔ、そうめん、viva\nSpoonで配信\nhttps://svarac.gith
- ub.io/
+ ス極まる盛大な幕切れをご堪能あれ。\nゲスト（回答者
+ ）：詩、ｷﾀﾆﾎｲﾔ、そうめん、viva\nSpoonで配信\nhttp
+ s://svarac.github.io/
 URL:https://svarac.github.io/
 BEGIN:VALARM
 ACTION:DISPLAY
