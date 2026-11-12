@@ -196,7 +196,7 @@
         </span>
       </button>`).join('');
     const dlg = $('flyer');
-    if (dlg.open && !live.some(({ i }) => String(i) === dlg.dataset.promo)) dlg.close();   // it ended while open
+    if (dlg.open && !live.some(({ i }) => String(i) === dlg.dataset.showing)) dlg.close();   // it ended while open
   }
   function syncMenu() { document.querySelectorAll('.menu__list li[data-for]').forEach((li) => { li.hidden = $(li.dataset.for).hidden; }); }
   function render(force) {
@@ -328,14 +328,14 @@
   // ---------- the flyer pop-up ----------
   let opener = null;
   document.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-promo]');
+    const b = e.target.closest('.banner[data-promo]');   // only the banners open it (not clicks inside the pop-up)
     if (!b) return;
     const p = DATA.promos[Number(b.dataset.promo)];
     if (!p) return;
     const dlg = $('flyer');
     if (!p.flyer || typeof dlg.showModal !== 'function') { if (p.url) window.open(p.url, '_blank', 'noopener'); return; }
     opener = b;
-    dlg.dataset.promo = b.dataset.promo;
+    dlg.dataset.showing = b.dataset.promo;
     $('flyer-h').textContent = p.title || 'フライヤー';
     const img = $('flyer-img'); img.src = p.flyer; img.alt = p.flyerAlt || `${p.title || ''}のフライヤー`;
     const a = $('flyer-link'); a.hidden = !p.url; if (p.url) { a.href = p.url; a.textContent = p.linkLabel || '企画主のページを見る'; }
@@ -343,7 +343,8 @@
     dlg.showModal();
   });
   $('flyer-close').addEventListener('click', () => $('flyer').close());
-  $('flyer').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });   // tap outside the flyer
+  // anywhere except the flyer itself and the buttons closes it
+  $('flyer').addEventListener('click', (e) => { if (!e.target.closest('.flyer__img, .flyer__link, .flyer__close')) e.currentTarget.close(); });
   $('flyer').addEventListener('close', () => { root.classList.remove('is-modal'); if (opener) opener.focus({ preventScroll: true }); opener = null; });
 
   async function boot() {
