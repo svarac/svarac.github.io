@@ -45,10 +45,6 @@
           "photo": "assets/img/cast/akomaru.jpg"
         },
         {
-          "name": "茨",
-          "photo": "assets/img/cast/ibara.jpg"
-        },
-        {
           "name": "えび塩ゆず七味",
           "photo": "assets/img/cast/ebishio.jpg"
         },
@@ -114,6 +110,10 @@
         },
         {
           "name": "鳥飼あうる"
+        },
+        {
+          "name": "茨",
+          "photo": "assets/img/cast/ibara.jpg"
         },
         {
           "name": "ひかる",
