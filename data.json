@@ -78,6 +78,10 @@
           "photo": "assets/img/cast/shibi.jpg?v=2"
         },
         {
+          "name": "しらたまもなか",
+          "photo": "assets/img/cast/shiratama-monaka.jpg?v=2"
+        },
+        {
           "name": "すがこ",
           "photo": "assets/img/cast/sugako.jpg?v=2"
         },
@@ -90,7 +94,8 @@
           "photo": "assets/img/cast/takkun.jpg?v=2"
         },
         {
-          "name": "ダー子"
+          "name": "ダー子",
+          "photo": "assets/img/cast/dako.jpg?v=2"
         },
         {
           "name": "ちゃちゃくん",
@@ -109,7 +114,8 @@
           "photo": "assets/img/cast/toto.jpg?v=2"
         },
         {
-          "name": "鳥飼あうる"
+          "name": "鳥飼あうる",
+          "photo": "assets/img/cast/torikai-auru.jpg?v=2"
         },
         {
           "name": "茨",
