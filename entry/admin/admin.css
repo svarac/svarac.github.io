@@ -125,3 +125,16 @@
 .qv--adopt .qv__text{color:var(--cream)}
 .adopt-mark{color:var(--gold)}
 .pc--adopt{background:rgba(255,194,26,.18);color:var(--gold-hi)}
+
+/* ジングル応募 */
+.jrow{display:grid;gap:10px;padding:16px;border-radius:var(--radius);background:var(--raised);border:1px solid var(--rule-soft)}
+.jrow__head{display:flex;align-items:center;gap:12px}
+.jrow__who{flex:1;min-width:0}
+.jrow .xline{margin:2px 0 0}
+.jrow .arow + .arow{margin-top:0}
+.jrow .qnote{margin-top:0}
+.jrow__edit{display:grid;margin-top:4px}
+.jrow__edit .field{margin-bottom:12px}
+.jrow__edit .select,.jrow__edit .input{min-height:48px;padding:10px 14px}
+@media (min-width:640px){.jrow__edit{grid-template-columns:200px minmax(0,1fr);column-gap:12px}.jrow__edit .field:last-child{grid-column:1/-1}}
+.jrow__foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}

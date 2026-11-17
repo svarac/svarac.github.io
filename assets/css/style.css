@@ -234,6 +234,9 @@ main{position:relative;z-index:1}
 .banner--promo .banner__art::after{content:"";position:absolute;inset:8px;border:1px solid rgba(255,194,26,.45);border-radius:4px;pointer-events:none}
 .banner--ring .banner__art{background:radial-gradient(ellipse 80% 60% at 50% -5%,rgba(255,214,120,.28),transparent 70%),radial-gradient(ellipse 90% 60% at 50% 115%,rgba(122,9,16,.75),transparent 70%),var(--ink)}
 .banner--ring .banner__art img{padding:5%}
+.banner--jingle .banner__art{background:radial-gradient(ellipse 70% 62% at 50% 34%,rgba(255,214,120,.24),transparent 72%),radial-gradient(ellipse 95% 70% at 50% 112%,rgba(217,22,30,.6),transparent 70%),var(--ink)}
+.banner--jingle .banner__art img{padding:6% 8%}
+#jingle .next__label{margin-bottom:var(--s2)}
 .banner__body{flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px 14px 14px}
 .banner__tag{padding:3px 8px 2px;border-radius:4px;background:var(--gold);color:var(--ink);font-weight:700;font-size:.75rem;line-height:1.4;letter-spacing:.06em}
 .banner--promo .banner__tag{background:var(--red-lo);color:var(--cream)}

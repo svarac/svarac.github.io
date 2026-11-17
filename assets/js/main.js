@@ -107,6 +107,37 @@
 
   const listenUrl = (e) => (e && e.spoon) || DATA.links.spoon || '';
 
+  // an icon + name tile (the line-up under the next stream, and the ジングル section)
+  const castTile = (q) => `<li class="cast__item${q.tag ? ' has-tag' : ''}"><span class="cast__face" aria-hidden="true">${q.photo ? `<img src="${esc(q.photo)}" alt="" loading="lazy" decoding="async">` : `<span class="gold">${esc([...String(q.name || '？')][0])}</span>`}</span>${q.tag ? `<span class="cast__tag">${esc(q.tag)}</span>` : ''}<span class="cast__name">${esc(q.name)}</span></li>`;
+
+  // ---------- ジングル: the 募集 card shows while entries are open; the people whose voices were used, in the order they were picked.
+  // Both come from the entry backend (the same Google Apps Script as /entry/ and /jingle/); the last answer is kept on this device
+  // so the page shows it at once and then refreshes.
+  const JKEY = 'svarac_jingle_info';
+  function renderJingle(info) {
+    const list = (info && Array.isArray(info.credits) ? info.credits : []).filter((c) => c && c.name);
+    $('jingle').hidden = !list.length;
+    $('jingle-count').textContent = list.length ? `${list.length}名` : '';
+    $('jingle-list').innerHTML = list.map((c) => castTile({ name: c.name, photo: /^data:image\/(jpeg|png);base64,/.test(c.thumb || '') ? c.thumb : '' })).join('');
+    $('jingle-banner').hidden = !(info && info.open);
+    syncMenu();
+  }
+  function loadJingle() {
+    try { const c = JSON.parse(localStorage.getItem(JKEY) || 'null'); if (c) renderJingle(c); } catch (e) { /* nothing kept */ }
+    const api = window.SVARAC_ENTRY && window.SVARAC_ENTRY.api;
+    if (!api || /[?&]demo\b/.test(location.search)) return;
+    fetch(api, { method: 'POST', body: JSON.stringify({ action: 'jingleInfo' }), redirect: 'follow' })
+      .then((r) => r.json())
+      .then((r) => {
+        if (!r || !r.ok) return;
+        const info = { open: !!r.open, credits: r.credits || [] };
+        try { localStorage.setItem(JKEY, JSON.stringify(info)); } catch (e) { /* storage full or private */ }
+        renderJingle(info);
+        if (!REDUCE) relayout();
+      })
+      .catch(() => { /* the page works without it */ });
+  }
+
   // ---------- sections
   function renderTop(st) {
     const when = st.next ? `<b class="gold">${md(st.next.s)}</b>（${dow(st.next.s)}）${hm(st.next.s)}〜` : '';
@@ -133,7 +164,7 @@
       </div>`;
     // the line-up under the next stream: ゲスト回答者, then 出題者・CMゲスト, both as icon + name tiles across the full width.
     // a "tag" (e.g. "CM") shows as a small badge; before names are out, the note (e.g. 後日発表 / 近日公開) stands in for the list
-    const tile = (q) => `<li class="cast__item${q.tag ? ' has-tag' : ''}"><span class="cast__face" aria-hidden="true">${q.photo ? `<img src="${esc(q.photo)}" alt="" loading="lazy" decoding="async">` : `<span class="gold">${esc([...String(q.name || '？')][0])}</span>`}</span>${q.tag ? `<span class="cast__tag">${esc(q.tag)}</span>` : ''}<span class="cast__name">${esc(q.name)}</span></li>`;
+    const tile = castTile;
     const roll = (label, list, note) => list.length ? `<div class="roll"><p class="next__label">${label}<span class="roll__count">${list.length}名</span></p><ul class="cast">${list.map(tile).join('')}</ul></div>`
       : note ? `<div class="roll"><p class="next__label">${label}</p><p class="guests__note">${esc(note)}</p></div>` : '';
     const rolls = roll('ゲスト回答者', e.guests, e.guestNote) + roll('出題者・CMゲスト', e.quizGuests, e.quizGuestsNote);
@@ -357,7 +388,7 @@
       catch (err) { console.error('data.json を読み込めませんでした', err); raw = {}; }
     }
     DATA = normalise(raw);
-    renderStatic(); renderStaff(); render(true);
+    renderStatic(); renderStaff(); render(true); loadJingle();
     $('hero-logo').classList.add('is-on');
     if (!REDUCE) {
       reveals(); relayout();

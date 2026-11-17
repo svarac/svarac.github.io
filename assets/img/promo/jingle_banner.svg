@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 520" width="520" height="520">
+  <defs>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFBE0"/><stop offset=".25" stop-color="#FFE45C"/><stop offset=".5" stop-color="#FFC21A"/>
+      <stop offset=".51" stop-color="#E07A00"/><stop offset=".75" stop-color="#FFB11A"/><stop offset="1" stop-color="#FFE88A"/>
+    </linearGradient>
+    <linearGradient id="chromeH" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#E07A00"/><stop offset=".3" stop-color="#FFE45C"/><stop offset=".45" stop-color="#FFFBE0"/>
+      <stop offset=".6" stop-color="#FFC21A"/><stop offset="1" stop-color="#B85F00"/>
+    </linearGradient>
+    <clipPath id="head"><rect x="196" y="78" width="128" height="214" rx="64"/></clipPath>
+  </defs>
+  <!-- sound -->
+  <g fill="none" stroke="url(#chrome)" stroke-linecap="round">
+    <path d="M150 128 A130 130 0 0 0 150 272" stroke-width="14"/>
+    <path d="M370 128 A130 130 0 0 1 370 272" stroke-width="14"/>
+    <path d="M108 92 A180 180 0 0 0 108 308" stroke-width="12" opacity=".7"/>
+    <path d="M412 92 A180 180 0 0 1 412 308" stroke-width="12" opacity=".7"/>
+    <path d="M66 58 A228 228 0 0 0 66 342" stroke-width="10" opacity=".4"/>
+    <path d="M454 58 A228 228 0 0 1 454 342" stroke-width="10" opacity=".4"/>
+  </g>
+  <!-- holder -->
+  <path d="M176 196 v44 a84 84 0 0 0 168 0 v-44" fill="none" stroke="url(#chromeH)" stroke-width="16" stroke-linecap="round"/>
+  <!-- head -->
+  <rect x="196" y="78" width="128" height="214" rx="64" fill="url(#chromeH)"/>
+  <g clip-path="url(#head)" stroke="#7A3F00" stroke-opacity=".35" stroke-width="5">
+    <path d="M190 100H330M190 118H330M190 136H330M190 154H330M190 172H330M190 230H330M190 248H330M190 266H330M190 284H330"/>
+    <path d="M228 70V300M260 70V300M292 70V300" stroke-opacity=".18"/>
+  </g>
+  <rect x="190" y="190" width="140" height="28" rx="8" fill="#D9161E"/>
+  <rect x="190" y="190" width="140" height="7" rx="3.5" fill="#FF4B45" opacity=".8"/>
+  <!-- stem and base -->
+  <rect x="251" y="322" width="18" height="78" rx="4" fill="url(#chromeH)"/>
+  <ellipse cx="260" cy="414" rx="96" ry="22" fill="#7A3F00" opacity=".55"/>
+  <ellipse cx="260" cy="406" rx="96" ry="20" fill="url(#chromeH)"/>
+  <!-- sparkles -->
+  <g fill="#FFE45C">
+    <path d="M116 400l7 19 19 7-19 7-7 19-7-19-19-7 19-7z"/>
+    <path d="M410 392l5 13 13 5-13 5-5 13-5-13-13-5 13-5z"/>
+    <path d="M436 452l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" opacity=".7"/>
+  </g>
+</svg>

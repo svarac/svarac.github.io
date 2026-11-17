@@ -153,7 +153,7 @@
       : '<img class="bar__logo" src="../assets/img/logo_svarac_mono-white.svg" alt="SVARAC" width="72" height="22">';
     app.innerHTML =
       '<header class="bar adm-bar">' + back + '<h1 class="bar__title">' + esc(opt.title || '提出管理') + '</h1>' +
-        '<nav class="adm-bar__nav">' + (opt.hideSettings ? '' : '<a class="btn btn--ghost btn--sm" href="#settings">設定</a>') + '</nav>' +
+        '<nav class="adm-bar__nav">' + (opt.hideJingle ? '' : '<a class="btn btn--ghost btn--sm" href="#jingle">ジングル</a>') + (opt.hideSettings ? '' : '<a class="btn btn--ghost btn--sm" href="#settings">設定</a>') + '</nav>' +
       '</header>' +
       '<main class="wrap wrap--wide page">' + body + '</main>';
     window.scrollTo(0, 0);
@@ -829,10 +829,13 @@
     else if (view === 'new') renderEditor(null);
     else if (view === 'edit' && id) renderEditor(id);
     else if (view === 'settings') renderSettings();
+    else if (view === 'jingle' && window.SVJ) window.SVJ.render();
     else if (view === 'proxy-quiz' && id) renderProxy(id, 'quiz');
     else if (view === 'proxy-voice' && id) renderProxy(id, 'voice');
     else renderList();
   }
   window.addEventListener('hashchange', route);
+  // shared with admin_jingle.js (the ジングル応募 page)
+  window.SVA = { api: A, shell: shell, save: save, getBlob: getBlob, zipFiles: zipFiles, renderError: renderError };
   route();
 })();
